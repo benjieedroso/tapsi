@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAPSI — Restaurant Management System for Filipino Food Businesses</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --green-50: #f0fdf4;
+            --green-100: #dcfce7;
+            --green-200: #bbf7d0;
+            --green-400: #4ade80;
+            --green-500: #22c55e;
+            --green-600: #16a34a;
+            --green-700: #15803d;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-400: #9ca3af;
+            --gray-500: #6b7280;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+            --white: #ffffff;
+            --radius: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --shadow-sm: 0 1px 2px rgba(0,0,0,.05);
+            --shadow: 0 4px 6px -1px rgba(0,0,0,.07), 0 2px 4px -2px rgba(0,0,0,.05);
+            --shadow-md: 0 10px 15px -3px rgba(0,0,0,.08), 0 4px 6px -4px rgba(0,0,0,.04);
+            --shadow-lg: 0 20px 25px -5px rgba(0,0,0,.08), 0 8px 10px -6px rgba(0,0,0,.04);
+        }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; color: var(--gray-800); line-height: 1.6; background: var(--white); }
+
+        /* ── Banner ── */
+        .top-banner { background: linear-gradient(135deg, var(--green-500), var(--green-600)); color: var(--white); text-align: center; padding: 10px 20px; font-size: 14px; font-weight: 500; }
+        .top-banner span { margin-right: 6px; }
+
+        /* ── Navbar ── */
+        .navbar { position: sticky; top: 0; z-index: 100; background: rgba(255,255,255,.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--gray-100); padding: 16px 0; }
+        .nav-inner { max-width: 1200px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; }
+        .logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+        .logo-icon { width: 40px; height: 40px; background: linear-gradient(135deg, var(--green-500), var(--green-600)); border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .logo-icon svg { width: 24px; height: 24px; fill: var(--white); }
+        .logo-text { font-size: 20px; font-weight: 800; color: var(--gray-900); letter-spacing: -0.5px; }
+        .logo-sub { font-size: 11px; color: var(--gray-400); font-weight: 500; margin-top: -2px; }
+        .nav-links { display: flex; gap: 32px; list-style: none; }
+        .nav-links a { text-decoration: none; color: var(--gray-600); font-size: 15px; font-weight: 500; transition: color .2s; }
+        .nav-links a:hover { color: var(--green-600); }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 28px; border-radius: 50px; font-size: 15px; font-weight: 600; text-decoration: none; border: none; cursor: pointer; transition: all .2s; }
+        .btn-primary { background: linear-gradient(135deg, var(--green-500), var(--green-600)); color: var(--white); box-shadow: 0 4px 14px rgba(22,163,74,.3); }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(22,163,74,.4); }
+        .btn-outline { background: var(--white); color: var(--gray-700); border: 1.5px solid var(--gray-200); }
+        .btn-outline:hover { border-color: var(--green-500); color: var(--green-600); }
+        .btn-white { background: var(--white); color: var(--green-700); font-weight: 600; }
+        .btn-white:hover { background: var(--green-50); }
+
+        /* ── Hero ── */
+        .hero { background: linear-gradient(180deg, var(--green-50) 0%, var(--white) 100%); padding: 80px 24px 100px; overflow: hidden; }
+        .hero-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+        .badge { display: inline-flex; align-items: center; gap: 6px; background: var(--white); border: 1px solid var(--green-200); color: var(--green-700); padding: 6px 16px; border-radius: 50px; font-size: 13px; font-weight: 600; margin-bottom: 24px; }
+        .badge svg { width: 16px; height: 16px; }
+        .hero h1 { font-size: 52px; font-weight: 800; line-height: 1.1; letter-spacing: -1.5px; color: var(--gray-900); margin-bottom: 20px; }
+        .hero h1 em { font-style: normal; background: linear-gradient(135deg, var(--green-500), var(--green-600)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .hero p { font-size: 18px; color: var(--gray-500); margin-bottom: 32px; max-width: 480px; line-height: 1.7; }
+        .hero-actions { display: flex; gap: 12px; margin-bottom: 40px; }
+        .social-proof { display: flex; align-items: center; gap: 12px; }
+        .avatars { display: flex; }
+        .avatars span { width: 36px; height: 36px; border-radius: 50%; border: 2px solid var(--white); display: flex; align-items: center; justify-content: center; font-size: 14px; margin-left: -8px; }
+        .avatars span:first-child { margin-left: 0; }
+        .avatars span:nth-child(1) { background: #fecaca; }
+        .avatars span:nth-child(2) { background: #bfdbfe; }
+        .avatars span:nth-child(3) { background: #bbf7d0; }
+        .avatars span:nth-child(4) { background: #fde68a; }
+        .avatars span:nth-child(5) { background: #e9d5ff; }
+        .social-text { font-size: 14px; color: var(--gray-600); }
+        .social-text strong { color: var(--gray-900); }
+        .stars { color: #facc15; font-size: 14px; letter-spacing: 1px; }
+
+        .hero-visual { position: relative; display: flex; justify-content: center; align-items: center; min-height: 420px; }
+        .hero-img-wrapper { position: relative; width: 420px; height: 380px; }
+        .hero-img-main { position: absolute; top: 20px; left: 40px; width: 320px; height: 240px; border-radius: 20px; object-fit: cover; box-shadow: 0 20px 40px rgba(0,0,0,.15); z-index: 2; }
+        .hero-img-float1 { position: absolute; top: 0; right: 0; width: 180px; height: 160px; border-radius: 16px; object-fit: cover; box-shadow: 0 12px 28px rgba(0,0,0,.12); z-index: 3; transform: rotate(3deg); }
+        .hero-img-float2 { position: absolute; bottom: 0; left: 0; width: 200px; height: 170px; border-radius: 16px; object-fit: cover; box-shadow: 0 12px 28px rgba(0,0,0,.12); z-index: 4; transform: rotate(-2deg); }
+        .hero-bg-blob { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 380px; height: 340px; background: linear-gradient(135deg, #fde68a 0%, #fed7aa 50%, #fecaca 100%); border-radius: 50% 40% 60% 45% / 45% 55% 40% 50%; opacity: .5; z-index: 0; }
+
+        /* ── Trust Bar ── */
+        .trust-bar { padding: 60px 24px; border-bottom: 1px solid var(--gray-100); }
+        .trust-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 40px; text-align: center; }
+        .trust-item { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+        .trust-icon { width: 56px; height: 56px; background: var(--green-50); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px; }
+        .trust-item h4 { font-size: 15px; font-weight: 700; color: var(--gray-800); }
+        .trust-item p { font-size: 13px; color: var(--gray-400); }
+
+        /* ── How It Works ── */
+        .how-it-works { padding: 100px 24px; background: var(--white); }
+        .section-header { text-align: center; max-width: 600px; margin: 0 auto 60px; }
+        .section-tag { display: inline-block; background: var(--green-50); color: var(--green-700); padding: 6px 16px; border-radius: 50px; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+        .section-header h2 { font-size: 40px; font-weight: 800; letter-spacing: -1px; color: var(--gray-900); margin-bottom: 16px; }
+        .section-header p { font-size: 17px; color: var(--gray-400); }
+        .steps { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; position: relative; }
+        .steps::before { content: ''; position: absolute; top: 44px; left: 16.6%; right: 16.6%; height: 2px; background: var(--green-100); }
+        .step { text-align: center; position: relative; }
+        .step-num { width: 48px; height: 48px; background: linear-gradient(135deg, var(--green-500), var(--green-600)); color: var(--white); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; margin-bottom: 24px; position: relative; z-index: 1; }
+        .step-icon { width: 72px; height: 72px; background: var(--green-50); border-radius: var(--radius-lg); display: flex; align-items: center; justify-content: center; font-size: 32px; margin: 0 auto 20px; }
+        .step h3 { font-size: 18px; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; }
+        .step p { font-size: 14px; color: var(--gray-400); max-width: 260px; margin: 0 auto; }
+
+        /* ── Features ── */
+        .features { padding: 100px 24px; background: var(--gray-50); }
+        .features-grid { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .feature-card { background: var(--white); border-radius: var(--radius-lg); padding: 32px; border: 1px solid var(--gray-100); transition: all .25s; }
+        .feature-card:hover { border-color: var(--green-200); box-shadow: var(--shadow-md); transform: translateY(-2px); }
+        .feature-icon { width: 48px; height: 48px; background: linear-gradient(135deg, var(--green-50), var(--green-100)); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 20px; }
+        .feature-card h3 { font-size: 17px; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; }
+        .feature-card p { font-size: 14px; color: var(--gray-400); line-height: 1.6; }
+
+        /* ── Pricing ── */
+        .pricing { padding: 100px 24px; background: var(--white); }
+        .pricing-grid { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; align-items: start; }
+        .price-card { background: var(--white); border: 1.5px solid var(--gray-100); border-radius: var(--radius-xl); padding: 36px 32px; text-align: center; transition: all .25s; }
+        .price-card.popular { border-color: var(--green-400); box-shadow: 0 8px 30px rgba(22,163,74,.12); position: relative; }
+        .popular-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: linear-gradient(135deg, var(--green-500), var(--green-600)); color: var(--white); padding: 4px 16px; border-radius: 50px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+        .price-card h3 { font-size: 18px; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; }
+        .price { font-size: 44px; font-weight: 800; color: var(--gray-900); letter-spacing: -1px; }
+        .price span { font-size: 16px; font-weight: 500; color: var(--gray-400); }
+        .price-desc { font-size: 13px; color: var(--gray-400); margin: 4px 0 24px; }
+        .price-features { list-style: none; text-align: left; margin-bottom: 28px; }
+        .price-features li { padding: 8px 0; font-size: 14px; color: var(--gray-600); display: flex; align-items: center; gap: 10px; }
+        .price-features li::before { content: '✓'; width: 20px; height: 20px; background: var(--green-50); color: var(--green-600); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+        .price-card .btn { width: 100%; }
+
+        /* ── Testimonials ── */
+        .testimonials { padding: 100px 24px; background: var(--gray-50); }
+        .testi-grid { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+        .testi-card { background: var(--white); border-radius: var(--radius-lg); padding: 32px; border: 1px solid var(--gray-100); }
+        .testi-stars { color: #facc15; font-size: 14px; margin-bottom: 16px; }
+        .testi-card blockquote { font-size: 14px; color: var(--gray-600); line-height: 1.7; margin-bottom: 20px; font-style: italic; }
+        .testi-author { display: flex; align-items: center; gap: 12px; }
+        .testi-avatar { width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; color: var(--white); }
+        .testi-author h5 { font-size: 14px; font-weight: 700; color: var(--gray-800); }
+        .testi-author p { font-size: 12px; color: var(--gray-400); }
+
+        /* ── CTA ── */
+        .cta { padding: 100px 24px; background: linear-gradient(135deg, var(--green-600), var(--green-700)); text-align: center; }
+        .cta h2 { font-size: 40px; font-weight: 800; color: var(--white); letter-spacing: -1px; margin-bottom: 16px; }
+        .cta p { font-size: 18px; color: rgba(255,255,255,.8); margin-bottom: 36px; max-width: 500px; margin-left: auto; margin-right: auto; }
+        .cta-actions { display: flex; gap: 12px; justify-content: center; }
+
+        /* ── Footer ── */
+        .footer { background: var(--gray-900); color: var(--gray-400); padding: 60px 24px 30px; }
+        .footer-inner { max-width: 1200px; margin: 0 auto; display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+        .footer-brand .logo-text { color: var(--white); }
+        .footer-brand p { font-size: 14px; margin-top: 12px; line-height: 1.7; }
+        .footer-col h4 { font-size: 13px; font-weight: 700; color: var(--gray-300); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; }
+        .footer-col a { display: block; font-size: 14px; color: var(--gray-400); text-decoration: none; padding: 4px 0; transition: color .2s; }
+        .footer-col a:hover { color: var(--green-400); }
+        .footer-bottom { max-width: 1200px; margin: 0 auto; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.08); display: flex; justify-content: space-between; font-size: 13px; }
+
+        /* ── Mobile ── */
+        @media (max-width: 900px) {
+            .hero-inner { grid-template-columns: 1fr; text-align: center; }
+            .hero h1 { font-size: 36px; }
+            .hero p { margin-left: auto; margin-right: auto; }
+            .hero-actions { justify-content: center; }
+            .social-proof { justify-content: center; }
+            .hero-visual { margin-top: 40px; min-height: 300px; }
+            .hero-img-wrapper { width: 320px; height: 300px; }
+            .hero-img-main { width: 240px; height: 180px; left: 30px; top: 20px; }
+            .hero-img-float1 { width: 140px; height: 120px; }
+            .hero-img-float2 { width: 150px; height: 130px; }
+            .hero-bg-blob { width: 280px; height: 260px; }
+            .nav-links { display: none; }
+            .trust-inner, .steps, .features-grid, .pricing-grid, .testi-grid { grid-template-columns: 1fr; max-width: 420px; }
+            .steps::before { display: none; }
+            .footer-inner { grid-template-columns: 1fr; }
+            .footer-bottom { flex-direction: column; gap: 8px; text-align: center; }
+            .cta h2 { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Banner -->
+<div class="top-banner">
+    <span>🔥</span> Libre for 30 days — No credit card required! Use code: <strong>TAPSI2026</strong>
+</div>
+
+<!-- Navbar -->
+<nav class="navbar">
+    <div class="nav-inner">
+        <a href="#" class="logo">
+            <div class="logo-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            </div>
+            <div>
+                <div class="logo-text">TAPSI</div>
+                <div class="logo-sub">Restaurant Management</div>
+            </div>
+        </a>
+        <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#how-it-works">How It Works</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#testimonials">Reviews</a></li>
+        </ul>
+        <a href="#cta" class="btn btn-primary">Start Free Trial</a>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="hero-inner">
+        <div class="hero-content">
+            <div class="badge">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                Built for Filipino Food Businesses
+            </div>
+            <h1>Run Your <em>Tapsihan</em> Like a Pro</h1>
+            <p>The all-in-one restaurant management system for tapsilogans, karinderyas, and small food businesses. Manage orders, inventory, staff, and payments — all in one place.</p>
+            <div class="hero-actions">
+                <a href="#cta" class="btn btn-primary">Build Your Free Plan</a>
+                <a href="#features" class="btn btn-outline">See Features</a>
+            </div>
+            <div class="social-proof">
+                <div class="avatars">
+                    <span>M</span><span>A</span><span>R</span><span>J</span><span>C</span>
+                </div>
+                <div>
+                    <div class="stars">★★★★★</div>
+                    <div class="social-text"><strong>2,500+</strong> Happy Tapsilogan Owners</div>
+                </div>
+            </div>
+        </div>
+        <div class="hero-visual">
+            <div class="hero-img-wrapper">
+                <div class="hero-bg-blob"></div>
+                <img src="images/filipino-food-spread.webp" alt="Filipino food spread with various dishes" class="hero-img-main">
+                <img src="images/tapsilog.png" alt="Classic Tapsilog — beef tapa, garlic rice, and egg" class="hero-img-float1">
+                <img src="images/family-dining.webp" alt="Filipino family enjoying a meal together" class="hero-img-float2">
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Trust Bar -->
+<section class="trust-bar">
+    <div class="trust-inner">
+        <div class="trust-item">
+            <div class="trust-icon">🚀</div>
+            <h4>Set Up in 5 Minutes</h4>
+            <p>Start taking orders today</p>
+        </div>
+        <div class="trust-item">
+            <div class="trust-icon">💰</div>
+            <h4>Free for 30 Days</h4>
+            <p>No credit card needed</p>
+        </div>
+        <div class="trust-item">
+            <div class="trust-icon">🔒</div>
+            <h4>Secure & Private</h4>
+            <p>Your data stays yours</p>
+        </div>
+        <div class="trust-item">
+            <div class="trust-icon">📱</div>
+            <h4>Works on Any Device</h4>
+            <p>Desktop, tablet, or phone</p>
+        </div>
+    </div>
+</section>
+
+<!-- How It Works -->
+<section class="how-it-works" id="how-it-works">
+    <div class="section-header">
+        <div class="section-tag">Simple Process</div>
+        <h2>How TAPSI Works</h2>
+        <p>From registration to your first order in three easy steps</p>
+    </div>
+    <div class="steps">
+        <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-icon">📝</div>
+            <h3>Sign Up Your Store</h3>
+            <p>Register your restaurant, set up your menu, and add your staff in minutes.</p>
+        </div>
+        <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-icon">📋</div>
+            <h3>Take Orders</h3>
+            <p>Accept dine-in, take-out, and delivery orders with an easy-to-use interface.</p>
+        </div>
+        <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-icon">📊</div>
+            <h3>Track Everything</h3>
+            <p>Monitor sales, inventory, expenses, and profits in real-time from your dashboard.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="features" id="features">
+    <div class="section-header">
+        <div class="section-tag">Features</div>
+        <h2>Everything You Need to Run Your Food Business</h2>
+        <p>From orders to inventory to payroll — TAPSI handles it all so you can focus on serving great food.</p>
+    </div>
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">🍽️</div>
+            <h3>Order Management</h3>
+            <p>Take dine-in, take-out, and delivery orders. Kitchen display, order tracking, and receipt printing built-in.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📦</div>
+            <h3>Inventory Tracking</h3>
+            <p>Track ingredients in real-time. Auto-deduct on sales, get low-stock alerts, and log spoilage.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">👥</div>
+            <h3>Staff Management</h3>
+            <p>Manage employee profiles, track attendance, assign roles, and control access permissions.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">💳</div>
+            <h3>Payments & Receipts</h3>
+            <p>Accept cash, GCash, card, and bank transfers. Generate BIR-compliant receipts automatically.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📈</div>
+            <h3>Sales & Profit Reports</h3>
+            <p>View daily, weekly, and monthly P&L. Export to CSV or PDF. Know exactly where your money goes.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🥗</div>
+            <h3>Recipe & Menu Management</h3>
+            <p>Build your menu with categories, add-ons, and recipes. Auto-deduct ingredients on every sale.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🧾</div>
+            <h3>Expense Tracking</h3>
+            <p>Log daily expenses by category. Attach receipts. Approve or flag unusual spending.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🔔</div>
+            <h3>Smart Notifications</h3>
+            <p>Get alerts for low stock, large orders, and unusual activity. Stay informed without checking constantly.</p>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">🌙</div>
+            <h3>Daily Closing</h3>
+            <p>End-of-day cash reconciliation. Lock the day to prevent backdated entries. Reopen when needed.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing -->
+<section class="pricing" id="pricing">
+    <div class="section-header">
+        <div class="section-tag">Pricing</div>
+        <h2>Choose Your Plan</h2>
+        <p>Flexible pricing that grows with your business. All plans include a 30-day free trial.</p>
+    </div>
+    <div class="pricing-grid">
+        <div class="price-card">
+            <h3>Tapsihan</h3>
+            <div class="price">₱0<span>/mo</span></div>
+            <div class="price-desc">For sari-sari stores & carinderias</div>
+            <ul class="price-features">
+                <li>1 user (Owner)</li>
+                <li>Up to 50 menu items</li>
+                <li>Basic order management</li>
+                <li>Daily sales reports</li>
+                <li>Email support</li>
+            </ul>
+            <a href="#cta" class="btn btn-outline">Get Started Free</a>
+        </div>
+        <div class="price-card popular">
+            <div class="popular-badge">Most Popular</div>
+            <h3>Karinderya</h3>
+            <div class="price">₱999<span>/mo</span></div>
+            <div class="price-desc">For growing food businesses</div>
+            <ul class="price-features">
+                <li>Up to 5 staff accounts</li>
+                <li>Unlimited menu items</li>
+                <li>Inventory & recipe tracking</li>
+                <li>Payment processing</li>
+                <li>Expense management</li>
+                <li>P&L reports with export</li>
+                <li>Priority support</li>
+            </ul>
+            <a href="#cta" class="btn btn-primary">Start Free Trial</a>
+        </div>
+        <div class="price-card">
+            <h3>Restaurant</h3>
+            <div class="price">₱2,499<span>/mo</span></div>
+            <div class="price-desc">For multi-branch operations</div>
+            <ul class="price-features">
+                <li>Unlimited staff accounts</li>
+                <li>All Karinderya features</li>
+                <li>Multi-branch support</li>
+                <li>Advanced analytics</li>
+                <li>API access</li>
+                <li>Phone + chat support</li>
+                <li>Dedicated account manager</li>
+            </ul>
+            <a href="#cta" class="btn btn-outline">Contact Sales</a>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials -->
+<section class="testimonials" id="testimonials">
+    <div class="section-header">
+        <div class="section-tag">Testimonials</div>
+        <h2>What Our Customers Say</h2>
+        <p>★★★★★ 4.9/5 from 1,200+ reviews</p>
+    </div>
+    <div class="testi-grid">
+        <div class="testi-card">
+            <div class="testi-stars">★★★★★</div>
+            <blockquote>"Grabe, ang dali mag-manage ng orders ngayon! Before, naka-notebook lang kami. Now, kita ko agad ang sales ko per day. Ang laking tulong ng TAPSI sa tapsilogan ko."</blockquote>
+            <div class="testi-author">
+                <div class="testi-avatar" style="background: linear-gradient(135deg, #fde68a, #f59e0b);">MC</div>
+                <div>
+                    <h5>Maria Cruz</h5>
+                    <p>Owner, Benjie's Tapsilogan — Quezon City</p>
+                </div>
+            </div>
+        </div>
+        <div class="testi-card">
+            <div class="testi-stars">★★★★★</div>
+            <blockquote>"As a manager, I love how I can track inventory and see which items are running low. The recipe feature automatically deducts ingredients — no more manual counting!"</blockquote>
+            <div class="testi-author">
+                <div class="testi-avatar" style="background: linear-gradient(135deg, #bbf7d0, #22c55e);">JR</div>
+                <div>
+                    <h5>Jose Reyes</h5>
+                    <p>Manager, Karinderya sa Kanto — Manila</p>
+                </div>
+            </div>
+        </div>
+        <div class="testi-card">
+            <div class="testi-stars">★★★★★</div>
+            <blockquote>"Finally, a system na hindi nakakalito! My cashier learned it in one day. The daily closing feature saves us so much time. Super sulit!"</blockquote>
+            <div class="testi-author">
+                <div class="testi-avatar" style="background: linear-gradient(135deg, #bfdbfe, #3b82f6);">AN</div>
+                <div>
+                    <h5>Ana Navarro</h5>
+                    <p>Owner, Ana's Kitchen — Cebu</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA -->
+<section class="cta" id="cta">
+    <h2>Ready to Simplify Your Restaurant?</h2>
+    <p>Join 2,500+ Filipino food businesses already using TAPSI. Start your free trial today — no credit card required.</p>
+    <div class="cta-actions">
+        <a href="#" class="btn btn-white">Start Free for 30 Days</a>
+        <a href="#" class="btn" style="background: rgba(255,255,255,.15); color: var(--white); border: 1px solid rgba(255,255,255,.3);">Book a Demo</a>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-brand">
+            <div class="logo-text">TAPSI</div>
+            <p>The all-in-one restaurant management system built for Filipino food businesses. From tapsilogans to karinderyas, we help you run your business smarter.</p>
+        </div>
+        <div class="footer-col">
+            <h4>Product</h4>
+            <a href="#">Features</a>
+            <a href="#">Pricing</a>
+            <a href="#">Integrations</a>
+            <a href="#">API Docs</a>
+        </div>
+        <div class="footer-col">
+            <h4>Company</h4>
+            <a href="#">About Us</a>
+            <a href="#">Blog</a>
+            <a href="#">Careers</a>
+            <a href="#">Contact</a>
+        </div>
+        <div class="footer-col">
+            <h4>Support</h4>
+            <a href="#">Help Center</a>
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms of Service</a>
+            <a href="#">Status</a>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <span>&copy; 2026 TAPSI. All rights reserved.</span>
+        <span>Made with ❤️ in the Philippines</span>
+    </div>
+</footer>
+
+</body>
+</html>
