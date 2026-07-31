@@ -39,4 +39,6 @@ Access tokens expire in 15 minutes. Refresh tokens expire in 7 days, rotate on r
 
 For Azure App Service, set `DJANGO_ALLOWED_HOSTS` to a comma-separated list of the App Service hostname and any custom domains. Set `DJANGO_CSRF_TRUSTED_ORIGINS` to the corresponding comma-separated HTTPS origins. The currently deployed Azure hostname is included as a safe default; custom domains must be explicitly added.
 
+Static files are collected during deployment and served by WhiteNoise. Run `python manage.py collectstatic --noinput` in any custom Azure deployment command.
+
 The SRS plans later modules (menu, inventory, orders, payments, and reporting) on top of this tenant-aware foundation.
