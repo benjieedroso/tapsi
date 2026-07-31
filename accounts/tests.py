@@ -1,10 +1,12 @@
 from django.core import mail
 from django.test import TestCase
 from django.utils import timezone
+import json
 from django.urls import reverse
 
 from .forms import RegistrationForm
-from .models import AuthenticationAudit, User
+from .models import AuthenticationAudit, RefreshToken, User
+from .services import decode_jwt
 
 
 class RegistrationFormTests(TestCase):
@@ -112,3 +114,86 @@ class AuthenticationSecurityTests(TestCase):
 
         self.assertContains(response, "Choose a new password")
         self.assertContains(response, "New password")
+
+    def test_successful_login_resets_failed_attempts_and_is_audited(self):
+        self.user.failed_login_count = 3
+        self.user.save(update_fields=["failed_login_count"])
+
+        response = self.client.post(reverse("accounts:login"), {
+            "email": self.user.email, "password": "SecurePass123",
+        })
+
+        self.assertRedirects(response, reverse("dashboard"))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.failed_login_count, 0)
+        self.assertTrue(AuthenticationAudit.objects.filter(
+            user=self.user, action=AuthenticationAudit.Action.LOGIN_SUCCESS,
+        ).exists())
+
+    def test_password_change_requires_current_password_and_audits_success(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("accounts:change_password"), {
+            "old_password": "SecurePass123",
+            "new_password1": "NewSecurePass123",
+            "new_password2": "NewSecurePass123",
+        })
+
+        self.assertRedirects(response, reverse("accounts:profile"))
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewSecurePass123"))
+        self.assertTrue(AuthenticationAudit.objects.filter(
+            user=self.user, action=AuthenticationAudit.Action.PASSWORD_CHANGED,
+        ).exists())
+
+    def test_profile_update_and_logout_are_recorded(self):
+        self.client.force_login(self.user)
+
+        response = self.client.post(reverse("accounts:profile"), {
+            "first_name": "Benjie", "last_name": "Edroso", "phone": "09171234567",
+        })
+        self.assertRedirects(response, reverse("accounts:profile"))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.display_name, "Benjie Edroso")
+
+        response = self.client.post(reverse("accounts:logout"))
+        self.assertRedirects(response, reverse("accounts:login"))
+        self.assertTrue(AuthenticationAudit.objects.filter(
+            user=self.user, action=AuthenticationAudit.Action.LOGOUT,
+        ).exists())
+
+    def test_jwt_login_issues_expected_token_pair(self):
+        response = self.client.post(reverse("accounts:api_token"), data=json.dumps({
+            "email": self.user.email, "password": "SecurePass123",
+        }), content_type="application/json")
+
+        self.assertEqual(response.status_code, 200)
+        tokens = response.json()
+        self.assertEqual(tokens["token_type"], "Bearer")
+        self.assertEqual(tokens["expires_in"], 900)
+        self.assertEqual(decode_jwt(tokens["access"], "access")["sub"], str(self.user.pk))
+        self.assertEqual(decode_jwt(tokens["refresh"], "refresh")["sub"], str(self.user.pk))
+        self.assertEqual(RefreshToken.objects.filter(user=self.user, revoked_at__isnull=True).count(), 1)
+
+    def test_jwt_refresh_rotation_and_logout_blacklist(self):
+        login_response = self.client.post(reverse("accounts:api_token"), data=json.dumps({
+            "email": self.user.email, "password": "SecurePass123",
+        }), content_type="application/json")
+        original_refresh = login_response.json()["refresh"]
+
+        refresh_response = self.client.post(reverse("accounts:api_token_refresh"), data=json.dumps({
+            "refresh": original_refresh,
+        }), content_type="application/json")
+        self.assertEqual(refresh_response.status_code, 200)
+        rotated_refresh = refresh_response.json()["refresh"]
+        self.assertNotEqual(rotated_refresh, original_refresh)
+        self.assertEqual(self.client.post(reverse("accounts:api_token_refresh"), data=json.dumps({
+            "refresh": original_refresh,
+        }), content_type="application/json").status_code, 401)
+
+        self.assertEqual(self.client.post(reverse("accounts:api_token_logout"), data=json.dumps({
+            "refresh": rotated_refresh,
+        }), content_type="application/json").status_code, 204)
+        self.assertEqual(self.client.post(reverse("accounts:api_token_refresh"), data=json.dumps({
+            "refresh": rotated_refresh,
+        }), content_type="application/json").status_code, 401)

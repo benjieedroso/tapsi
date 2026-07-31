@@ -1,1 +1,15 @@
-Testing
+Server name
+tapsi-server
+
+Database name
+tapsi-database
+
+Region
+Southeast Asia
+
+Username
+pjxbgtqvac
+
+
+Password
+CVefKqkH$xA2q$6H

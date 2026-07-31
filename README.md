@@ -25,4 +25,18 @@ During local development, password-reset emails appear in the server terminal. U
 - Login, logout, password-policy validation, and first-login password change
 - Role-aware dashboard and owner staff-user creation
 
+## JWT API authentication
+
+Template pages use Django sessions. JSON clients use the SRS authentication endpoints:
+
+- `POST /accounts/api/token/` — JSON body: `{"email": "...", "password": "..."}`
+- `POST /accounts/api/token/refresh/` — JSON body: `{"refresh": "..."}`
+- `POST /accounts/api/token/logout/` — JSON body: `{"refresh": "..."}`
+
+Access tokens expire in 15 minutes. Refresh tokens expire in 7 days, rotate on refresh, are revoked on logout, and are all revoked after a password change or reset.
+
+## Deployment configuration
+
+For Azure App Service, set `DJANGO_ALLOWED_HOSTS` to a comma-separated list of the App Service hostname and any custom domains. Set `DJANGO_CSRF_TRUSTED_ORIGINS` to the corresponding comma-separated HTTPS origins. The currently deployed Azure hostname is included as a safe default; custom domains must be explicitly added.
+
 The SRS plans later modules (menu, inventory, orders, payments, and reporting) on top of this tenant-aware foundation.

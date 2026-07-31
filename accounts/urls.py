@@ -5,6 +5,9 @@ from . import views
 
 app_name = "accounts"
 urlpatterns = [
+    path("api/token/", views.api_token, name="api_token"),
+    path("api/token/refresh/", views.api_token_refresh, name="api_token_refresh"),
+    path("api/token/logout/", views.api_token_logout, name="api_token_logout"),
     path("register/", views.register, name="register"),
     path("login/", views.TAPSILoginView.as_view(), name="login"),
     path("logout/", views.logout, name="logout"),

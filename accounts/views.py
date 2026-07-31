@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.views import PasswordResetConfirmView, PasswordResetView
 from django.core.mail import send_mail
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
@@ -18,7 +19,68 @@ from .forms import (
     FirstPasswordChangeForm, ProfileForm, RegistrationForm, StaffUserForm,
 )
 from .models import AuthenticationAudit, User
-from .services import audit_authentication, invalidate_other_sessions, is_locked
+from .services import (
+    JWTError, audit_authentication, invalidate_other_sessions, is_locked,
+    issue_token_pair, revoke_all_refresh_tokens, revoke_refresh_token, rotate_refresh_token,
+)
+
+
+def _json_body(request):
+    import json
+    try:
+        return json.loads(request.body.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+
+def api_token(request):
+    """Issue a 15-minute access token and rotating 7-day refresh token."""
+    if request.method != "POST":
+        return JsonResponse({"detail": "Method not allowed."}, status=405)
+    data = _json_body(request)
+    if not isinstance(data, dict):
+        return JsonResponse({"detail": "A JSON object is required."}, status=400)
+    email = str(data.get("email", "")).lower().strip()
+    password = data.get("password", "")
+    user = User.objects.filter(email__iexact=email).first()
+    if not user or not user.is_active or is_locked(user) or not user.check_password(password):
+        audit_authentication(request, AuthenticationAudit.Action.LOGIN_FAILURE, user=user, email=email)
+        if user and user.is_active and not is_locked(user):
+            user.failed_login_count += 1
+            fields = ["failed_login_count"]
+            if user.failed_login_count >= 5:
+                user.failed_login_count = 0
+                user.locked_until = timezone.now() + timedelta(minutes=15)
+                fields.extend(["failed_login_count", "locked_until"])
+                audit_authentication(request, AuthenticationAudit.Action.ACCOUNT_LOCKED, user=user)
+            user.save(update_fields=fields)
+        return JsonResponse({"detail": "Unable to log in with the provided credentials."}, status=401)
+    user.failed_login_count = 0
+    user.locked_until = None
+    user.save(update_fields=["failed_login_count", "locked_until"])
+    audit_authentication(request, AuthenticationAudit.Action.LOGIN_SUCCESS, user=user)
+    return JsonResponse(issue_token_pair(user))
+
+
+def api_token_refresh(request):
+    if request.method != "POST":
+        return JsonResponse({"detail": "Method not allowed."}, status=405)
+    data = _json_body(request)
+    try:
+        return JsonResponse(rotate_refresh_token(data["refresh"]))
+    except (TypeError, KeyError, JWTError):
+        return JsonResponse({"detail": "Invalid or expired refresh token."}, status=401)
+
+
+def api_token_logout(request):
+    if request.method != "POST":
+        return JsonResponse({"detail": "Method not allowed."}, status=405)
+    data = _json_body(request)
+    try:
+        revoke_refresh_token(data["refresh"])
+    except (TypeError, KeyError, JWTError):
+        return JsonResponse({"detail": "Invalid or expired refresh token."}, status=401)
+    return JsonResponse({}, status=204)
 
 
 def register(request):
@@ -92,6 +154,7 @@ def change_initial_password(request):
         user.save(update_fields=["must_change_password"])
         update_session_auth_hash(request, user)
         invalidate_other_sessions(user, request.session.session_key)
+        revoke_all_refresh_tokens(user)
         audit_authentication(request, AuthenticationAudit.Action.PASSWORD_CHANGED, user=user)
         messages.success(request, "Your password has been updated.")
         return redirect("dashboard")
@@ -105,6 +168,7 @@ def change_password(request):
         user = form.save()
         update_session_auth_hash(request, user)
         invalidate_other_sessions(user, request.session.session_key)
+        revoke_all_refresh_tokens(user)
         audit_authentication(request, AuthenticationAudit.Action.PASSWORD_CHANGED, user=user)
         messages.success(request, "Your password has been changed. Other sessions were signed out.")
         return redirect("accounts:profile")
@@ -169,6 +233,7 @@ class TAPSPasswordResetConfirmView(PasswordResetConfirmView):
     def form_valid(self, form):
         response = super().form_valid(form)
         invalidate_other_sessions(form.user)
+        revoke_all_refresh_tokens(form.user)
         audit_authentication(self.request, AuthenticationAudit.Action.PASSWORD_RESET, user=form.user)
         messages.success(self.request, "Your password has been reset. Please log in.")
         return response
