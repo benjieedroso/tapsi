@@ -19,6 +19,23 @@
     border-radius: var(--radius-full);
 }
 
+.navbar-links a.active {
+    color: var(--tapsi-600);
+    font-weight: var(--font-weight-semibold);
+    position: relative;
+}
+
+.navbar-links a.active::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--tapsi-500);
+    border-radius: 1px;
+}
+
 /* ── Alerts ── */
 .alert {
     padding: var(--space-3) var(--space-4);
@@ -97,11 +114,11 @@
     color: var(--tapsi-600);
     text-decoration: none;
     font-weight: var(--font-weight-semibold);
+    transition: color var(--transition-fast);
 }
 
 .auth-card p a:hover {
     color: var(--tapsi-700);
-    text-decoration: underline;
 }
 
 /* ── Form Fields ── */
@@ -256,11 +273,11 @@ button:active, .button:active {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-semibold);
     text-decoration: none;
+    transition: color var(--transition-fast);
 }
 
 .grid article a:hover {
     color: var(--tapsi-700);
-    text-decoration: underline;
 }
 
 /* ── Page Headings ── */
@@ -276,6 +293,7 @@ button:active, .button:active {
     font-weight: var(--font-weight-extrabold);
     color: var(--gray-900);
     letter-spacing: var(--letter-spacing-tight);
+    line-height: var(--line-height-tight);
 }
 
 /* ── Tables ── */
@@ -298,6 +316,7 @@ button:active, .button:active {
     padding: var(--space-4) var(--space-5);
     border-bottom: 1px solid var(--gray-100);
     font-size: var(--font-size-sm);
+    vertical-align: middle;
 }
 
 .table-card th {
@@ -313,12 +332,21 @@ button:active, .button:active {
     color: var(--gray-700);
 }
 
+.table-card td:first-child {
+    font-weight: var(--font-weight-semibold);
+    color: var(--gray-800);
+}
+
 .table-card tr:last-child td {
     border-bottom: none;
 }
 
 .table-card tr:hover td {
     background: var(--tapsi-50);
+}
+
+.table-card .empty-state {
+    padding: var(--space-12) var(--space-6);
 }
 
 /* ── Badges in Tables ── */
@@ -358,6 +386,55 @@ button:active, .button:active {
     font-weight: var(--font-weight-extrabold);
     color: var(--gray-900);
     margin-bottom: var(--space-6);
+    text-align: center;
+}
+
+.profile-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--tapsi-200);
+    margin: 0 auto var(--space-6);
+    display: block;
+}
+
+.profile-links {
+    text-align: center;
+    margin-top: var(--space-6);
+    padding-top: var(--space-6);
+    border-top: 1px solid var(--gray-100);
+}
+
+.profile-links a {
+    color: var(--tapsi-600);
+    text-decoration: none;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    transition: color var(--transition-fast);
+}
+
+.profile-links a:hover {
+    color: var(--tapsi-700);
+}
+
+.profile-links span {
+    color: var(--gray-300);
+    margin: 0 var(--space-2);
+}
+
+/* ── File Input Styling ── */
+.field input[type="file"] {
+    padding: var(--space-2);
+    border: 1.5px dashed var(--gray-300);
+    border-radius: var(--radius-lg);
+    background: var(--gray-50);
+    cursor: pointer;
+}
+
+.field input[type="file"]:hover {
+    border-color: var(--tapsi-400);
+    background: var(--tapsi-50);
 }
 
 /* ── Empty States ── */

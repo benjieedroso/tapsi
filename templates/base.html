@@ -23,9 +23,10 @@
             {% if user.is_authenticated %}
             <ul class="navbar-links">
                 <li><span class="nav-restaurant-name">{{ user.restaurant.name }}</span></li>
-                <li><a href="{% url 'accounts:profile' %}">Profile</a></li>
+                <li><a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a></li>
+                <li><a href="{% url 'accounts:profile' %}" class="{% if request.resolver_match.url_name == 'profile' %}active{% endif %}">Profile</a></li>
                 {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
-                <li><a href="{% url 'accounts:staff_list' %}">Staff</a></li>
+                <li><a href="{% url 'accounts:staff_list' %}" class="{% if request.resolver_match.url_name == 'staff_list' or request.resolver_match.url_name == 'create_staff' %}active{% endif %}">Staff</a></li>
                 {% endif %}
                 <li>
                     <form method="post" action="{% url 'accounts:logout' %}" style="display:inline">

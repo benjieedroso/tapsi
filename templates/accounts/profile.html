@@ -4,9 +4,7 @@
 <section class="profile-card">
     <h1>Your profile</h1>
     {% if user.avatar %}
-    <div style="text-align: center; margin-bottom: var(--space-6);">
-        <img src="{{ user.avatar.url }}" alt="Your avatar" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 3px solid var(--tapsi-200);">
-    </div>
+    <img class="profile-avatar" src="{{ user.avatar.url }}" alt="Your avatar">
     {% endif %}
     <form method="post" enctype="multipart/form-data" novalidate>
         {% csrf_token %}
@@ -19,8 +17,9 @@
         {% endfor %}
         <button type="submit" class="btn btn-primary" style="width: 100%;">Save profile</button>
     </form>
-    <div style="text-align: center; margin-top: var(--space-6); padding-top: var(--space-6); border-top: 1px solid var(--gray-100);">
-        <a href="{% url 'accounts:request_email_change' %}" style="margin-right: var(--space-4);">Change email address</a>
+    <div class="profile-links">
+        <a href="{% url 'accounts:request_email_change' %}">Change email</a>
+        <span>·</span>
         <a href="{% url 'accounts:change_password' %}">Change password</a>
     </div>
 </section>
