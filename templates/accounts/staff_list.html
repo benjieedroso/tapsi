@@ -1,1 +1,54 @@
-{% extends 'base.html' %}{% block title %}Staff · TAPSI{% endblock %}{% block content %}<div class="page-heading"><div><h1>Staff</h1><p>Accounts for {{ user.restaurant.name }}.</p></div><a class="button" href="{% url 'accounts:create_staff' %}">Add staff member</a></div><div class="table-card"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th></tr></thead><tbody>{% for member in staff %}<tr><td>{{ member.display_name }}</td><td>{{ member.email }}</td><td>{{ member.get_role_display }}</td><td>{% if member.is_active %}Active{% else %}Inactive{% endif %}</td></tr>{% empty %}<tr><td colspan="4">No staff accounts yet.</td></tr>{% endfor %}</tbody></table></div>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Staff · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Staff</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm);">Accounts for {{ user.restaurant.name }}.</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'accounts:create_staff' %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add staff member
+    </a>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in staff %}
+            <tr>
+                <td style="font-weight: var(--font-weight-semibold);">{{ member.display_name }}</td>
+                <td>{{ member.email }}</td>
+                <td>
+                    <span class="badge badge-{{ member.role|lower }}">
+                        {{ member.get_role_display }}
+                    </span>
+                </td>
+                <td>
+                    {% if member.is_active %}
+                    <span class="badge badge-success">Active</span>
+                    {% else %}
+                    <span class="badge badge-error">Inactive</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="empty-state">
+                    <h3>No staff accounts yet</h3>
+                    <p>Add your first staff member to get started.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

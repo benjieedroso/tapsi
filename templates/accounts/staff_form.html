@@ -1,1 +1,25 @@
-{% extends 'base.html' %}{% block title %}Add staff · TAPSI{% endblock %}{% block content %}<section class="form-card"><h1>Add staff member</h1><p>The new account belongs only to {{ user.restaurant.name }}.</p><form method="post" novalidate>{% csrf_token %}{% for field in form %}<div class="field">{{ field.label_tag }}{{ field }}{% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}{{ field.errors }}</div>{% endfor %}<button>Create account</button> <a href="{% url 'accounts:staff_list' %}">Cancel</a></form></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Add staff · TAPSI{% endblock %}
+{% block content %}
+<section class="form-card">
+    <h1>Add staff member</h1>
+    <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-bottom: var(--space-6);">The new account belongs only to {{ user.restaurant.name }}.</p>
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.help_text %}
+            <small>{{ field.help_text }}</small>
+            {% endif %}
+            {{ field.errors }}
+        </div>
+        {% endfor %}
+        <div style="display: flex; gap: var(--space-3); margin-top: var(--space-6);">
+            <button type="submit" class="btn btn-primary" style="flex: 1;">Create account</button>
+            <a href="{% url 'accounts:staff_list' %}" class="btn btn-secondary" style="flex: 1;">Cancel</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

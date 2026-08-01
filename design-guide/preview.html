@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TAPSI Design System Preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="tokens.css">
+    <link rel="stylesheet" href="components.css">
+    <style>
+        .preview-section {
+            max-width: var(--container-xl);
+            margin: 0 auto;
+            padding: var(--space-16) var(--space-6);
+            border-bottom: 1px solid var(--gray-100);
+        }
+        .preview-section:last-child {
+            border-bottom: none;
+        }
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-6);
+            margin-top: var(--space-8);
+        }
+        .preview-row {
+            display: flex;
+            gap: var(--space-4);
+            flex-wrap: wrap;
+            margin-top: var(--space-6);
+        }
+        .color-swatch {
+            width: 80px;
+            height: 80px;
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: flex-end;
+            padding: var(--space-2);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-semibold);
+        }
+        .spacing-demo {
+            display: flex;
+            align-items: flex-end;
+            gap: var(--space-4);
+            margin-top: var(--space-6);
+        }
+        .spacing-block {
+            background: var(--tapsi-200);
+            border-radius: var(--radius-sm);
+        }
+        .type-demo {
+            margin-top: var(--space-6);
+        }
+        .type-demo > div {
+            margin-bottom: var(--space-4);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Hero Section -->
+<section style="background: linear-gradient(180deg, var(--tapsi-50) 0%, var(--white) 100%); padding: var(--space-20) var(--space-6); text-align: center;">
+    <div class="section-tag">Design System</div>
+    <h1 style="font-size: var(--font-size-5xl); font-weight: var(--font-weight-extrabold); color: var(--gray-900); margin-bottom: var(--space-4);">TAPSI Design Tokens</h1>
+    <p style="font-size: var(--font-size-lg); color: var(--gray-400); max-width: 500px; margin: 0 auto var(--space-8);">A comprehensive design system for building consistent, beautiful interfaces.</p>
+    <div class="preview-row" style="justify-content: center;">
+        <a href="#colors" class="btn btn-primary">View Colors</a>
+        <a href="#components" class="btn btn-secondary">View Components</a>
+    </div>
+</section>
+
+<!-- Colors -->
+<section class="preview-section" id="colors">
+    <div class="section-tag">Colors</div>
+    <h2 class="section-title">Color Palette</h2>
+    <p class="section-subtitle">Primary green tones for the TAPSI brand.</p>
+
+    <h3 style="margin-top: var(--space-8); margin-bottom: var(--space-4); font-weight: var(--font-weight-bold);">Primary (Green)</h3>
+    <div class="preview-row">
+        <div class="color-swatch" style="background: var(--tapsi-50); color: var(--gray-800);">50</div>
+        <div class="color-swatch" style="background: var(--tapsi-100); color: var(--gray-800);">100</div>
+        <div class="color-swatch" style="background: var(--tapsi-200); color: var(--gray-800);">200</div>
+        <div class="color-swatch" style="background: var(--tapsi-400); color: var(--white);">400</div>
+        <div class="color-swatch" style="background: var(--tapsi-500); color: var(--white);">500</div>
+        <div class="color-swatch" style="background: var(--tapsi-600); color: var(--white);">600</div>
+        <div class="color-swatch" style="background: var(--tapsi-700); color: var(--white);">700</div>
+    </div>
+
+    <h3 style="margin-top: var(--space-8); margin-bottom: var(--space-4); font-weight: var(--font-weight-bold);">Neutrals (Gray)</h3>
+    <div class="preview-row">
+        <div class="color-swatch" style="background: var(--gray-50); color: var(--gray-800); border: 1px solid var(--gray-200);">50</div>
+        <div class="color-swatch" style="background: var(--gray-100); color: var(--gray-800);">100</div>
+        <div class="color-swatch" style="background: var(--gray-200); color: var(--gray-800);">200</div>
+        <div class="color-swatch" style="background: var(--gray-400); color: var(--white);">400</div>
+        <div class="color-swatch" style="background: var(--gray-600); color: var(--white);">600</div>
+        <div class="color-swatch" style="background: var(--gray-800); color: var(--white);">800</div>
+        <div class="color-swatch" style="background: var(--gray-900); color: var(--white);">900</div>
+    </div>
+
+    <h3 style="margin-top: var(--space-8); margin-bottom: var(--space-4); font-weight: var(--font-weight-bold);">Semantic</h3>
+    <div class="preview-row">
+        <div class="color-swatch" style="background: var(--color-success); color: var(--white);">Success</div>
+        <div class="color-swatch" style="background: var(--color-warning); color: var(--white);">Warning</div>
+        <div class="color-swatch" style="background: var(--color-error); color: var(--white);">Error</div>
+        <div class="color-swatch" style="background: var(--color-info); color: var(--white);">Info</div>
+    </div>
+</section>
+
+<!-- Typography -->
+<section class="preview-section" id="typography">
+    <div class="section-tag">Typography</div>
+    <h2 class="section-title">Type Scale</h2>
+    <p class="section-subtitle">Inter font family with consistent sizing.</p>
+
+    <div class="type-demo">
+        <div style="font-size: var(--font-size-5xl); font-weight: var(--font-weight-extrabold); color: var(--gray-900);">Heading 1 — 48px ExtraBold</div>
+        <div style="font-size: var(--font-size-4xl); font-weight: var(--font-weight-extrabold); color: var(--gray-900);">Heading 2 — 36px ExtraBold</div>
+        <div style="font-size: var(--font-size-3xl); font-weight: var(--font-weight-bold); color: var(--gray-800);">Heading 3 — 30px Bold</div>
+        <div style="font-size: var(--font-size-2xl); font-weight: var(--font-weight-bold); color: var(--gray-800);">Heading 4 — 24px Bold</div>
+        <div style="font-size: var(--font-size-xl); font-weight: var(--font-weight-semibold); color: var(--gray-700);">Heading 5 — 20px SemiBold</div>
+        <div style="font-size: var(--font-size-lg); font-weight: var(--font-weight-medium); color: var(--gray-600);">Large Text — 18px Medium</div>
+        <div style="font-size: var(--font-size-base); color: var(--gray-600);">Body Text — 16px Regular</div>
+        <div style="font-size: var(--font-size-sm); color: var(--gray-500);">Small Text — 14px Regular</div>
+        <div style="font-size: var(--font-size-xs); color: var(--gray-400);">Caption — 12px Regular</div>
+    </div>
+</section>
+
+<!-- Spacing -->
+<section class="preview-section" id="spacing">
+    <div class="section-tag">Spacing</div>
+    <h2 class="section-title">Spacing Scale</h2>
+    <p class="section-subtitle">Consistent spacing for layout and components.</p>
+
+    <div class="spacing-demo">
+        <div style="text-align: center;">
+            <div class="spacing-block" style="width: 4px; height: 4px;"></div>
+            <div style="font-size: var(--font-size-xs); margin-top: var(--space-1);">4px</div>
+        </div>
+        <div style="text-align: center;">
+            <div class="spacing-block" style="width: 8px; height: 8px;"></div>
+            <div style="font-size: var(--font-size-xs); margin-top: var(--space-1);">8px</div>
+        </div>
+        <div style="text-align: center;">
+            <div class="spacing-block" style="width: 12px; height: 12px;"></div>
+            <div style="font-size: var(--font-size-xs); margin-top: var(--space-1);">12px</div>
+        </div>
+        <div style="text-align: center;">
+            <div class="spacing-block" style="width: 16px; height: 16px;"></div>
+            <div style="font-size: var(--font-size-xs); margin-top: var(--space-1);">16px</div>
+        </div>
+        <div style="text-align: center;">
+            <div class="spacing-block" style="width: 24px; height: 24px;"></div>
+            <div style="font-size: var(--font-size-xs); margin-top: var(--space-1);">24px</div>
+        </div>
+        <div style="text-align: center;">
+            <div class="spacing-block" style="width: 32px; height: 32px;"></div>
+            <div style="font-size: var(--font-size-xs); margin-top: var(--space-1);">32px</div>
+        </div>
+        <div style="text-align: center;">
+            <div class="spacing-block" style="width: 48px; height: 48px;"></div>
+            <div style="font-size: var(--font-size-xs); margin-top: var(--space-1);">48px</div>
+        </div>
+        <div style="text-align: center;">
+            <div class="spacing-block" style="width: 64px; height: 64px;"></div>
+            <div style="font-size: var(--font-size-xs); margin-top: var(--space-1);">64px</div>
+        </div>
+    </div>
+</section>
+
+<!-- Buttons -->
+<section class="preview-section" id="components">
+    <div class="section-tag">Components</div>
+    <h2 class="section-title">Buttons</h2>
+    <p class="section-subtitle">Multiple variants and sizes for different contexts.</p>
+
+    <h3 style="margin-top: var(--space-8); margin-bottom: var(--space-4); font-weight: var(--font-weight-bold);">Variants</h3>
+    <div class="preview-row">
+        <button class="btn btn-primary">Primary</button>
+        <button class="btn btn-secondary">Secondary</button>
+        <button class="btn btn-ghost">Ghost</button>
+    </div>
+
+    <h3 style="margin-top: var(--space-8); margin-bottom: var(--space-4); font-weight: var(--font-weight-bold);">Sizes</h3>
+    <div class="preview-row" style="align-items: center;">
+        <button class="btn btn-primary btn-sm">Small</button>
+        <button class="btn btn-primary">Default</button>
+        <button class="btn btn-primary btn-lg">Large</button>
+    </div>
+</section>
+
+<!-- Badges -->
+<section class="preview-section">
+    <h2 class="section-title" style="font-size: var(--font-size-2xl);">Badges</h2>
+    <div class="preview-row" style="margin-top: var(--space-6);">
+        <span class="badge badge-primary">Primary</span>
+        <span class="badge badge-success">Success</span>
+        <span class="badge badge-warning">Warning</span>
+        <span class="badge badge-error">Error</span>
+        <span class="badge badge-popular">Most Popular</span>
+    </div>
+</section>
+
+<!-- Avatars -->
+<section class="preview-section">
+    <h2 class="section-title" style="font-size: var(--font-size-2xl);">Avatars</h2>
+    <div class="preview-row" style="margin-top: var(--space-6); align-items: center;">
+        <div class="avatar avatar-green">M</div>
+        <div class="avatar avatar-yellow">A</div>
+        <div class="avatar avatar-blue">R</div>
+        <div class="avatar avatar-pink">J</div>
+        <div class="avatar avatar-purple">C</div>
+        <div style="margin-left: var(--space-8);">
+            <div class="avatar-stack">
+                <div class="avatar avatar-green">M</div>
+                <div class="avatar avatar-yellow">A</div>
+                <div class="avatar avatar-blue">R</div>
+                <div class="avatar avatar-pink">J</div>
+                <div class="avatar avatar-purple">C</div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Cards -->
+<section class="preview-section">
+    <h2 class="section-title" style="font-size: var(--font-size-2xl);">Cards</h2>
+    <div class="preview-grid" style="margin-top: var(--space-6);">
+        <div class="card">
+            <div class="feature-icon">📦</div>
+            <h3 class="feature-title">Inventory Tracking</h3>
+            <p class="feature-desc">Track ingredients in real-time with auto-deduction on sales.</p>
+        </div>
+        <div class="card">
+            <div class="feature-icon">💳</div>
+            <h3 class="feature-title">Payment Processing</h3>
+            <p class="feature-desc">Accept cash, GCash, card, and bank transfers.</p>
+        </div>
+        <div class="card">
+            <div class="feature-icon">📈</div>
+            <h3 class="feature-title">Sales Reports</h3>
+            <p class="feature-desc">View daily, weekly, and monthly P&L with export.</p>
+        </div>
+    </div>
+</section>
+
+<!-- Pricing -->
+<section class="preview-section">
+    <h2 class="section-title" style="font-size: var(--font-size-2xl);">Pricing Cards</h2>
+    <div class="preview-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: var(--space-6);">
+        <div class="pricing-card">
+            <h3 class="pricing-name">Tapsihan</h3>
+            <div class="pricing-amount">₱0<span>/mo</span></div>
+            <div class="pricing-desc">For sari-sari stores</div>
+            <ul class="pricing-features">
+                <li>1 user</li>
+                <li>50 menu items</li>
+                <li>Basic orders</li>
+            </ul>
+            <button class="btn btn-secondary" style="width: 100%;">Get Started</button>
+        </div>
+        <div class="pricing-card popular">
+            <div class="pricing-badge">Most Popular</div>
+            <h3 class="pricing-name">Karinderya</h3>
+            <div class="pricing-amount">₱999<span>/mo</span></div>
+            <div class="pricing-desc">For growing businesses</div>
+            <ul class="pricing-features">
+                <li>5 staff accounts</li>
+                <li>Unlimited menu</li>
+                <li>Inventory tracking</li>
+            </ul>
+            <button class="btn btn-primary" style="width: 100%;">Start Free Trial</button>
+        </div>
+        <div class="pricing-card">
+            <h3 class="pricing-name">Restaurant</h3>
+            <div class="pricing-amount">₱2,499<span>/mo</span></div>
+            <div class="pricing-desc">For multi-branch</div>
+            <ul class="pricing-features">
+                <li>Unlimited staff</li>
+                <li>Multi-branch</li>
+                <li>API access</li>
+            </ul>
+            <button class="btn btn-secondary" style="width: 100%;">Contact Sales</button>
+        </div>
+    </div>
+</section>
+
+<!-- Testimonials -->
+<section class="preview-section">
+    <h2 class="section-title" style="font-size: var(--font-size-2xl);">Testimonials</h2>
+    <div class="preview-grid" style="grid-template-columns: repeat(3, 1fr); margin-top: var(--space-6);">
+        <div class="testimonial-card">
+            <div class="testimonial-stars">★★★★★</div>
+            <blockquote class="testimonial-quote">"Ang laking tulong ng TAPSI sa tapsilogan ko! Super easy to use."</blockquote>
+            <div class="testimonial-author">
+                <div class="avatar avatar-green">MC</div>
+                <div>
+                    <div class="testimonial-name">Maria Cruz</div>
+                    <div class="testimonial-role">Owner, Benjie's Tapsilogan</div>
+                </div>
+            </div>
+        </div>
+        <div class="testimonial-card">
+            <div class="testimonial-stars">★★★★★</div>
+            <blockquote class="testimonial-quote">"Finally, a system na hindi nakakalito! My cashier learned it in one day."</blockquote>
+            <div class="testimonial-author">
+                <div class="avatar avatar-blue">JR</div>
+                <div>
+                    <div class="testimonial-name">Jose Reyes</div>
+                    <div class="testimonial-role">Manager, Karinderya sa Kanto</div>
+                </div>
+            </div>
+        </div>
+        <div class="testimonial-card">
+            <div class="testimonial-stars">★★★★★</div>
+            <blockquote class="testimonial-quote">"Super sulit! The daily closing feature saves us so much time."</blockquote>
+            <div class="testimonial-author">
+                <div class="avatar avatar-pink">AN</div>
+                <div>
+                    <div class="testimonial-name">Ana Navarro</div>
+                    <div class="testimonial-role">Owner, Ana's Kitchen</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-brand">
+            <div class="navbar-logo-text" style="color: var(--white);">TAPSI</div>
+            <p>The all-in-one restaurant management system for Filipino food businesses.</p>
+        </div>
+        <div class="footer-col">
+            <h4>Product</h4>
+            <a href="#">Features</a>
+            <a href="#">Pricing</a>
+            <a href="#">API</a>
+        </div>
+        <div class="footer-col">
+            <h4>Company</h4>
+            <a href="#">About</a>
+            <a href="#">Blog</a>
+            <a href="#">Contact</a>
+        </div>
+        <div class="footer-col">
+            <h4>Support</h4>
+            <a href="#">Help Center</a>
+            <a href="#">Privacy</a>
+            <a href="#">Terms</a>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        <span>&copy; 2026 TAPSI. All rights reserved.</span>
+        <span>Made with ❤️ in the Philippines</span>
+    </div>
+</footer>
+
+</body>
+</html>

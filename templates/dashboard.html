@@ -1,1 +1,34 @@
-{% extends 'base.html' %}{% block title %}Dashboard · TAPSI{% endblock %}{% block content %}<section class="hero"><p class="eyebrow">{{ user.get_role_display }}</p><h1>Good day, {{ user.display_name }}.</h1><p>{{ user.restaurant.name }} is ready for its first service.</p></section><section class="grid">{% if user.role == 'OWNER' or user.role == 'MANAGER' %}<article><h2>Restaurant setup</h2><p>Add staff accounts, then continue with menu and inventory setup in the next module.</p><a href="{% url 'accounts:staff_list' %}">Manage staff</a></article>{% endif %}<article><h2>Today's orders</h2><p class="metric">0</p><p>Order management will be added in the next phase.</p></article><article><h2>Low stock</h2><p class="metric">—</p><p>Inventory alerts will appear here once ingredients are configured.</p></article></section>{% endblock %}
+{% extends 'base.html' %}
+{% block title %}Dashboard · TAPSI{% endblock %}
+{% block content %}
+<section class="hero">
+    <span class="eyebrow">{{ user.get_role_display }}</span>
+    <h1>Good day, {{ user.display_name }}.</h1>
+    <p>{{ user.restaurant.name }} is ready for its first service.</p>
+</section>
+
+<section class="grid">
+    {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
+    <article>
+        <h2>Restaurant setup</h2>
+        <p>Add staff accounts, then continue with menu and inventory setup in the next module.</p>
+        <a href="{% url 'accounts:staff_list' %}">
+            Manage staff
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+    </article>
+    {% endif %}
+
+    <article>
+        <h2>Today's orders</h2>
+        <p class="metric">0</p>
+        <p>Order management will be added in the next phase.</p>
+    </article>
+
+    <article>
+        <h2>Low stock</h2>
+        <p class="metric">—</p>
+        <p>Inventory alerts will appear here once ingredients are configured.</p>
+    </article>
+</section>
+{% endblock %}
