@@ -15,8 +15,10 @@ def env_list(name, default):
 # Configure additional domains in Azure App Service as a comma-separated
 # DJANGO_ALLOWED_HOSTS setting. Keeping an explicit default prevents accepting
 # arbitrary Host headers while allowing the deployed App Service URL.
-AZURE_APP_HOST = "tapsi-b6ekafhafgdudjdp.southeastasia-01.azurewebsites.net"
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1", "[::1]", AZURE_APP_HOST])
+# AZURE_APP_HOST = "tapsi-b6ekafhafgdudjdp.southeastasia-01.azurewebsites.net"
+AZURE_APP_HOST = "tapsidaily.online"
+
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1", "tapsi-b6ekafhafgdudjdp.southeastasia-01.azurewebsites.net", "[::1]", AZURE_APP_HOST])
 CSRF_TRUSTED_ORIGINS = env_list(
     "DJANGO_CSRF_TRUSTED_ORIGINS",
     [f"https://{AZURE_APP_HOST}"],
