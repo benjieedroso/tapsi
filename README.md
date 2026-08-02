@@ -26,8 +26,8 @@ Open `http://127.0.0.1:8000/` and register the first restaurant owner.
 |--------|-------------|--------|
 | **Module 1** | Authentication & User Profile | ✅ Complete |
 | **Module 2** | Restaurant & User Management | ✅ Complete |
-| Module 3 | Dashboard | 🔲 Pending |
-| Module 4 | Menu Management | 🔲 Pending |
+| **Module 3** | Dashboard | ✅ Complete |
+| **Module 4** | Menu Management | ✅ Complete |
 | Module 5 | Inventory Management | 🔲 Pending |
 | Module 6 | Supplier Management | 🔲 Pending |
 | Module 7 | Purchase Orders | 🔲 Pending |
@@ -71,6 +71,62 @@ All functional requirements (FR-010 to FR-017) implemented:
 - Tenant isolation via restaurant FK on all queries — FR-017
 - Staff edit, admin password reset, `StaffAudit` logging
 - 31 tests covering staff CRUD, roles, deactivation, settings, and validation
+
+## Module 3: Dashboard — Complete
+
+All functional requirements (FR-020 to FR-026) implemented:
+
+- Role-based widget visibility — financial widgets hidden for Cashier — FR-026
+- Today's sales summary widget (placeholder: ₱0.00 until orders module) — FR-020
+- Order status counts widget (placeholder: 0 until orders module) — FR-021
+- Top sellers widget (placeholder until orders module) — FR-022
+- Low stock alerts widget (placeholder until inventory module) — FR-023
+- Menu items count and quick action links
+- Dashboard template with hero section and grid layout matching design guide
+
+## Module 4: Menu Management — Complete
+
+All functional requirements (FR-030 to FR-037) implemented:
+
+- **Category CRUD** — name (unique per restaurant), display order, active flag — FR-030
+- **Menu Item CRUD** — name, description, category, price (≥₱0.00), prep time, availability, image — FR-031
+- **Image upload** — JPEG/PNG/WebP, max 5 MB validation — FR-032
+- **Add-Ons** — name, price, toggle per menu item — FR-033
+- **Toggle availability** — hide/show on order screen without deleting — FR-034
+- **Soft delete** — items preserved in historical records — FR-035
+- **Price change history** — old price, new price, timestamp — FR-036
+- **Menu search & filtering** — search by name, filter by category — FR-037
+- Role-based access: Owner and Manager can manage; Cashier cannot
+- Tenant isolation via `restaurant_id` on all queries
+- 54 tests covering category CRUD, menu item CRUD, add-ons, price history, access control, and validation
+
+### Models (`menu/models.py`)
+
+| Model | Fields |
+|-------|--------|
+| `Category` | restaurant_id, name (unique per restaurant), display_order, is_active |
+| `MenuItem` | restaurant_id, category (FK), name, description, price, prep_minutes, is_available, image, is_deleted, deleted_at |
+| `MenuItemPriceHistory` | menu_item (FK), old_price, new_price, changed_by (FK→User), created_at |
+| `AddOn` | restaurant_id, name, price, is_available |
+| `MenuItemAddOn` | menu_item (FK), addon (FK) — unique together |
+
+### Endpoints
+
+| Path | Description |
+|------|-------------|
+| `/menu/categories/` | Category list |
+| `/menu/categories/new/` | Create category |
+| `/menu/categories/<id>/edit/` | Edit category |
+| `/menu/categories/<id>/delete/` | Delete category |
+| `/menu/items/` | Menu item list (search, filter) |
+| `/menu/items/new/` | Create menu item |
+| `/menu/items/<id>/edit/` | Edit menu item |
+| `/menu/items/<id>/delete/` | Soft delete menu item |
+| `/menu/items/<id>/toggle/` | Toggle availability |
+| `/menu/items/<id>/price-history/` | Price change log |
+| `/menu/addons/` | Add-on list |
+| `/menu/addons/new/` | Create add-on |
+| `/menu/addons/<id>/edit/` | Edit add-on |
 
 ## JWT API
 

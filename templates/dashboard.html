@@ -8,27 +8,76 @@
 </section>
 
 <section class="grid">
-    {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
+    {% if show_financials %}
     <article>
-        <h2>Restaurant setup</h2>
-        <p>Add staff accounts, then continue with menu and inventory setup in the next module.</p>
-        <a href="{% url 'accounts:staff_list' %}">
-            Manage staff
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </a>
+        <h2>Today's Sales</h2>
+        <p class="metric">₱0.00</p>
+        <p>Sales data will appear here once orders are processed.</p>
+    </article>
+
+    <article>
+        <h2>Order Status</h2>
+        <p class="metric">0</p>
+        <p>Pending orders will be shown here.</p>
     </article>
     {% endif %}
 
     <article>
-        <h2>Today's orders</h2>
-        <p class="metric">0</p>
-        <p>Order management will be added in the next phase.</p>
+        <h2>Menu Items</h2>
+        <p class="metric">{{ menu_count }}</p>
+        {% if menu_count > 0 %}
+        <a href="{% url 'menu:menu_list' %}">View all items
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        {% else %}
+        <p>Add menu items to start taking orders.</p>
+        <a href="{% url 'menu:menu_create' %}">Add first item
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        {% endif %}
     </article>
 
     <article>
-        <h2>Low stock</h2>
+        <h2>Categories</h2>
+        <p class="metric">{{ category_count }}</p>
+        {% if category_count > 0 %}
+        <a href="{% url 'menu:category_list' %}">Manage categories
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        {% else %}
+        <p>Organize your menu into categories.</p>
+        <a href="{% url 'menu:category_create' %}">Add first category
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+        {% endif %}
+    </article>
+
+    <article>
+        <h2>Add-Ons</h2>
+        <p class="metric">—</p>
+        <p>Extra items like extra rice or extra egg.</p>
+        <a href="{% url 'menu:addon_list' %}">Manage add-ons
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+    </article>
+
+    {% if show_financials %}
+    <article>
+        <h2>Low Stock</h2>
         <p class="metric">—</p>
         <p>Inventory alerts will appear here once ingredients are configured.</p>
     </article>
+    {% endif %}
+
+    {% if show_financials %}
+    <article>
+        <h2>Quick Actions</h2>
+        <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3);">
+            <a href="{% url 'menu:menu_create' %}" style="margin-top: 0;">Add menu item</a>
+            <a href="{% url 'menu:category_create' %}" style="margin-top: 0;">Add category</a>
+            <a href="{% url 'accounts:staff_list' %}" style="margin-top: 0;">Manage staff</a>
+        </div>
+    </article>
+    {% endif %}
 </section>
 {% endblock %}

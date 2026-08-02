@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Add-On · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>{{ action }} Add-On</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Extra items customers can add to their orders.</p>
+    </div>
+</div>
+
+<div class="form-card" style="max-width: 420px;">
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+        </div>
+        {% endfor %}
+        <div style="display: flex; gap: var(--space-3); margin-top: var(--space-6);">
+            <button type="submit" class="btn btn-primary">{{ action }} Add-On</button>
+            <a href="{% url 'menu:addon_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

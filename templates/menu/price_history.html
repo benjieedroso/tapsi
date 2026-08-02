@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Price History · {{ item.name }} · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Price History</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Track price changes for <strong>{{ item.name }}</strong>.</p>
+    </div>
+    <a href="{% url 'menu:menu_edit' item.pk %}" class="btn btn-secondary">Back to item</a>
+</div>
+
+<div style="margin-bottom: var(--space-4); padding: var(--space-4); background: var(--gray-50); border-radius: var(--radius-lg);">
+    <span style="font-size: var(--font-size-sm); color: var(--gray-500);">Current price:</span>
+    <span style="font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--tapsi-600); margin-left: var(--space-2);">₱{{ item.price|floatformat:2 }}</span>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Old Price</th>
+                <th>New Price</th>
+                <th>Changed By</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in history %}
+            <tr>
+                <td>{{ entry.created_at|date:"M d, Y H:i" }}</td>
+                <td>₱{{ entry.old_price|floatformat:2 }}</td>
+                <td>₱{{ entry.new_price|floatformat:2 }}</td>
+                <td>{{ entry.changed_by.display_name|default:"—" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="empty-state">
+                    <h3>No price changes yet</h3>
+                    <p>Price changes will be recorded here when you update the item's price.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

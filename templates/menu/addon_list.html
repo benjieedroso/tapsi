@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Add-Ons · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Add-Ons</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Extra items customers can add to their orders.</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'menu:addon_create' %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add add-on
+    </a>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for addon in addons %}
+            <tr>
+                <td>{{ addon.name }}</td>
+                <td>₱{{ addon.price|floatformat:2 }}</td>
+                <td>
+                    {% if addon.is_available %}
+                    <span class="badge badge-success">Available</span>
+                    {% else %}
+                    <span class="badge badge-warning">Unavailable</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: right;">
+                    <a href="{% url 'menu:addon_edit' addon.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                    <button class="btn btn-ghost btn-sm delete-btn" data-name="{{ addon.name }}" data-url="{% url 'menu:addon_delete' addon.pk %}" style="color: var(--color-error);">Delete</button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="empty-state">
+                    <h3>No add-ons yet</h3>
+                    <p>Create add-ons like extra rice or extra egg.</p>
+                    <a href="{% url 'menu:addon_create' %}" class="btn btn-primary">Add add-on</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="modal-overlay" id="deleteModal" style="display: none;">
+    <div class="modal">
+        <h3>Delete Add-On</h3>
+        <p>Are you sure you want to delete <strong id="deleteName"></strong>?</p>
+        <div style="display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-6);">
+            <button class="btn btn-secondary" onclick="document.getElementById('deleteModal').style.display='none'">Cancel</button>
+            <form method="post" id="deleteForm" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary" style="background: var(--color-error);">Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.getElementById('deleteName').textContent = this.dataset.name;
+        document.getElementById('deleteForm').action = this.dataset.url;
+        document.getElementById('deleteModal').style.display = 'flex';
+    });
+});
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+});
+</script>
+{% endblock %}

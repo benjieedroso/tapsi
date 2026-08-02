@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}Menu Items · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Menu Items</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Manage your sellable items, prices, and availability.</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'menu:menu_create' %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add menu item
+    </a>
+</div>
+
+<div style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); flex-wrap: wrap;">
+    <form method="get" style="display: flex; gap: var(--space-2); flex: 1; max-width: 400px;">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search by name..." class="input" style="flex: 1;">
+        {% if selected_category %}
+        <input type="hidden" name="category" value="{{ selected_category }}">
+        {% endif %}
+        <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+    </form>
+    <form method="get" style="display: flex; gap: var(--space-2);">
+        <select name="category" class="input" style="width: auto;" onchange="this.form.submit()">
+            <option value="">All categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat.pk }}" {% if selected_category == cat.pk|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+        </select>
+    </form>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Prep Time</th>
+                <th>Status</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.name }}</td>
+                <td>{{ item.category.name|default:"—" }}</td>
+                <td>₱{{ item.price|floatformat:2 }}</td>
+                <td>{{ item.prep_minutes }} min</td>
+                <td>
+                    {% if item.is_available %}
+                    <span class="badge badge-success">Available</span>
+                    {% else %}
+                    <span class="badge badge-warning">Unavailable</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: right;">
+                    <button class="btn btn-ghost btn-sm toggle-btn" data-url="{% url 'menu:menu_toggle' item.pk %}" data-name="{{ item.name }}">
+                        {% if item.is_available %}Hide{% else %}Show{% endif %}
+                    </button>
+                    <a href="{% url 'menu:menu_price_history' item.pk %}" class="btn btn-ghost btn-sm">History</a>
+                    <a href="{% url 'menu:menu_edit' item.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                    <button class="btn btn-ghost btn-sm delete-btn" data-name="{{ item.name }}" data-url="{% url 'menu:menu_delete' item.pk %}" style="color: var(--color-error);">Delete</button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="empty-state">
+                    <h3>No menu items yet</h3>
+                    <p>Add your first menu item to get started.</p>
+                    <a href="{% url 'menu:menu_create' %}" class="btn btn-primary">Add menu item</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="modal-overlay" id="deleteModal" style="display: none;">
+    <div class="modal">
+        <h3>Delete Menu Item</h3>
+        <p>Are you sure you want to delete <strong id="deleteName"></strong>? This is a soft delete — the item will remain in historical records.</p>
+        <div style="display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-6);">
+            <button class="btn btn-secondary" onclick="document.getElementById('deleteModal').style.display='none'">Cancel</button>
+            <form method="post" id="deleteForm" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary" style="background: var(--color-error);">Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.getElementById('deleteName').textContent = this.dataset.name;
+        document.getElementById('deleteForm').action = this.dataset.url;
+        document.getElementById('deleteModal').style.display = 'flex';
+    });
+});
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+});
+
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const url = this.dataset.url;
+        const btnEl = this;
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Accept': 'application/json',
+            },
+        }).then(r => r.json()).then(data => {
+            if (data.is_available) {
+                btnEl.textContent = 'Hide';
+            } else {
+                btnEl.textContent = 'Show';
+            }
+            location.reload();
+        });
+    });
+});
+</script>
+{% endblock %}

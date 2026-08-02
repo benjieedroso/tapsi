@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Menu Item · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>{{ action }} Menu Item</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Set up a sellable item for your menu.</p>
+    </div>
+</div>
+
+<div class="form-card" style="max-width: 560px;">
+    <form method="post" enctype="multipart/form-data" novalidate>
+        {% csrf_token %}
+
+        <div class="settings-section">
+            <h3 class="settings-section-title">Basic Info</h3>
+            {% for field in form %}
+            {% if field.name == 'image' %}
+            {# skip image — render below in its own section #}
+            {% elif field.name == 'is_available' %}
+            {# skip — render below #}
+            {% else %}
+            <div class="field">
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+
+        <div class="settings-section">
+            <h3 class="settings-section-title">Image</h3>
+            <div class="field">
+                {{ form.image.label_tag }}
+                {{ form.image }}
+                {% if form.image.errors %}<ul class="errorlist"><li>{{ form.image.errors.0 }}</li></ul>{% endif %}
+                <small>JPEG, PNG, or WebP. Max 5 MB.</small>
+            </div>
+            {% if form.instance.image %}
+            <div style="margin-top: var(--space-2);">
+                <img src="{{ form.instance.image.url }}" alt="Current image" style="max-width: 200px; border-radius: var(--radius-lg); border: 1px solid var(--gray-200);">
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="settings-section">
+            <h3 class="settings-section-title">Availability</h3>
+            <div class="field">
+                <label class="checkbox-label">
+                    {{ form.is_available }}
+                    <span>{{ form.is_available.label }}</span>
+                </label>
+                {% if form.is_available.errors %}<ul class="errorlist"><li>{{ form.is_available.errors.0 }}</li></ul>{% endif %}
+            </div>
+        </div>
+
+        {% if form.instance.pk %}
+        <div class="settings-section">
+            <h3 class="settings-section-title">Add-Ons</h3>
+            <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+                {% for addon in available_addons %}
+                <label class="checkbox-label" style="background: var(--gray-50); padding: var(--space-2) var(--space-3); border-radius: var(--radius-lg); border: 1px solid var(--gray-200);">
+                    <input type="checkbox" data-addon-url="{% url 'menu:menu_toggle_addon' form.instance.pk addon.pk %}" {% if addon.attached %}checked{% endif %}>
+                    <span>{{ addon.name }} (₱{{ addon.price|floatformat:2 }})</span>
+                </label>
+                {% empty %}
+                <p style="color: var(--gray-400); font-size: var(--font-size-sm);">No add-ons created yet. <a href="{% url 'menu:addon_create' %}" style="color: var(--tapsi-600);">Create one</a></p>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div style="display: flex; gap: var(--space-3); margin-top: var(--space-6);">
+            <button type="submit" class="btn btn-primary">{{ action }} Menu Item</button>
+            <a href="{% url 'menu:menu_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+{% if form.instance.pk %}
+<script>
+document.querySelectorAll('[data-addon-url]').forEach(cb => {
+    cb.addEventListener('change', function() {
+        fetch(this.dataset.addonUrl, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Accept': 'application/json',
+            },
+        });
+    });
+});
+</script>
+{% endif %}
+{% endblock %}

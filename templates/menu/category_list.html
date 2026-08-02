@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% block title %}Categories · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Menu Categories</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Organize your menu items into groups.</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'menu:category_create' %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add category
+    </a>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Order</th>
+                <th>Name</th>
+                <th>Items</th>
+                <th>Status</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat in categories %}
+            <tr>
+                <td>{{ cat.display_order }}</td>
+                <td>{{ cat.name }}</td>
+                <td>{{ cat.items.count }}</td>
+                <td>
+                    {% if cat.is_active %}
+                    <span class="badge badge-success">Active</span>
+                    {% else %}
+                    <span class="badge badge-error">Inactive</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: right;">
+                    <a href="{% url 'menu:category_edit' cat.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                    <button class="btn btn-ghost btn-sm delete-btn" data-name="{{ cat.name }}" data-url="{% url 'menu:category_delete' cat.pk %}" style="color: var(--color-error);">Delete</button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="empty-state">
+                    <h3>No categories yet</h3>
+                    <p>Create your first category to organize menu items.</p>
+                    <a href="{% url 'menu:category_create' %}" class="btn btn-primary">Add category</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="modal-overlay" id="deleteModal" style="display: none;">
+    <div class="modal">
+        <h3>Delete Category</h3>
+        <p>Are you sure you want to delete <strong id="deleteName"></strong>? Items in this category will become uncategorized.</p>
+        <div style="display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-6);">
+            <button class="btn btn-secondary" onclick="document.getElementById('deleteModal').style.display='none'">Cancel</button>
+            <form method="post" id="deleteForm" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary" style="background: var(--color-error);">Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.getElementById('deleteName').textContent = this.dataset.name;
+        document.getElementById('deleteForm').action = this.dataset.url;
+        document.getElementById('deleteModal').style.display = 'flex';
+    });
+});
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+});
+</script>
+{% endblock %}

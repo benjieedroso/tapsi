@@ -244,7 +244,27 @@ class TAPSPasswordResetConfirmView(PasswordResetConfirmView):
 def dashboard(request):
     if request.user.must_change_password:
         return redirect("accounts:change_initial_password")
-    return render(request, "dashboard.html")
+
+    restaurant = request.user.restaurant
+    role = request.user.role
+
+    # FR-026: Role-based widget visibility — Cashier sees only order status + low stock
+    show_financials = role in {User.Role.OWNER, User.Role.MANAGER}
+
+    # FR-020..FR-024: Placeholder context — real data will come from future modules
+    from menu.models import MenuItem, Category
+    rid = restaurant.pk if restaurant else 0
+    menu_count = MenuItem.objects.filter(
+        restaurant_id=rid, is_deleted=False, is_available=True,
+    ).count()
+    category_count = Category.objects.filter(restaurant_id=rid).count()
+
+    context = {
+        "show_financials": show_financials,
+        "menu_count": menu_count,
+        "category_count": category_count,
+    }
+    return render(request, "dashboard.html", context)
 
 
 def can_manage_staff(user):
