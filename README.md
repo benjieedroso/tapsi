@@ -44,30 +44,33 @@ Open `http://127.0.0.1:8000/` and register the first restaurant owner.
 
 ## Module 1: Authentication & User Profile — Complete
 
-All functional requirements (FR-001 to FR-013) implemented:
+All functional requirements (FR-001 to FR-009) implemented:
 
-- JWT authentication (15-min access, 7-day refresh with rotation)
-- Generic error messages (no account enumeration)
-- Account lockout after 5 failed attempts (15 min)
-- Logout with refresh token blacklisting
-- Password reset via email (1-hour expiry)
-- Password change with session invalidation
-- Password policy (10+ chars, letter+number, common password denylist)
-- Profile update (name, phone, avatar) with email re-verification
-- Login audit logging (timestamp, IP, user agent)
-- Staff account creation by Owner/Manager
-- Forced password change on first login
-- 4 roles: Owner, Manager, Cashier, Kitchen
+- JWT authentication (15-min access, 7-day refresh with rotation) — FR-001
+- Generic error messages (no account enumeration) — FR-002
+- Account lockout after 5 failed attempts (15 min) — FR-003
+- Logout with refresh token blacklisting — FR-004
+- Password reset via email (1-hour expiry) — FR-005
+- Password change with session invalidation — FR-006
+- Password policy (10+ chars, letter+number, common password denylist) — FR-007
+- Profile update (name, phone, avatar) with email re-verification — FR-008
+- Login audit logging (timestamp, IP, user agent) — FR-009
+- 35 tests covering registration, login, lockout, JWT, password flows, profile, and validation
 
-### Gaps (SRS Spec vs Current Implementation)
+## Module 2: Restaurant & User Management — Complete
 
-| Area | SRS Spec | Current | Action Needed |
-|------|----------|---------|---------------|
-| API Framework | Django REST Framework | Django views + custom JWT | Add DRF for API layer |
-| Frontend | React + Vite SPA | Django templates | Build React frontend |
-| Database | PostgreSQL 16 on AWS RDS | SQLite | Migrate to PostgreSQL |
-| Tenant Isolation | DRF permission classes, tenant-aware base queryset | Restaurant FK on models | Add DRF permission classes |
-| Infrastructure | AWS (EC2, RDS, S3, CloudFront) | Azure App Service | Migrate to AWS (or keep Azure) |
+All functional requirements (FR-010 to FR-017) implemented:
+
+- Restaurant registration with Owner account — FR-010
+- Owner-only restaurant settings (name, address, TIN, VAT, receipt footer) — FR-011
+- Staff account creation (Owner: all roles; Manager: Cashier/Kitchen only) — FR-012
+- Forced password change on first login — FR-013
+- Role change by Owner with audit trail — FR-014
+- Soft deletes with `is_deleted`/`deleted_at` fields — FR-015
+- Last-active Owner protection — cannot deactivate the sole Owner — FR-016
+- Tenant isolation via restaurant FK on all queries — FR-017
+- Staff edit, admin password reset, `StaffAudit` logging
+- 31 tests covering staff CRUD, roles, deactivation, settings, and validation
 
 ## JWT API
 
@@ -101,18 +104,12 @@ For Azure App Service, set:
 
 Run `python manage.py collectstatic --noinput` during deployment.
 
-## Module 2: Restaurant & User Management — Complete
+### Gaps (SRS Spec vs Current Implementation)
 
-All functional requirements (FR-010 to FR-017) implemented:
-
-- Restaurant registration with Owner account (FR-010)
-- Owner settings page: name, address, TIN, VAT, receipt footer (FR-011)
-- Staff account creation with temporary password (FR-012, FR-013)
-- Staff role editing by Owner (FR-014)
-- Soft deletes with `is_deleted`/`deleted_at` fields (FR-015)
-- Last-active Owner protection — cannot deactivate the sole Owner (FR-016)
-- Tenant isolation via restaurant FK on all queries (FR-017)
-- Staff edit/update view (first name, last name, phone)
-- Owner password reset for staff accounts
-- `StaffAudit` model logging role changes, activations, deactivations, password resets
-- 30 tests covering all Module 2 scenarios
+| Area | SRS Spec | Current | Action Needed |
+|------|----------|---------|---------------|
+| API Framework | Django REST Framework | Django views + custom JWT | Add DRF for API layer |
+| Frontend | React + Vite SPA | Django templates | Build React frontend |
+| Database | PostgreSQL 16 on AWS RDS | SQLite | Migrate to PostgreSQL |
+| Tenant Isolation | DRF permission classes, tenant-aware base queryset | Restaurant FK on models | Add DRF permission classes |
+| Infrastructure | AWS (EC2, RDS, S3, CloudFront) | Azure App Service | Migrate to AWS (or keep Azure) |
