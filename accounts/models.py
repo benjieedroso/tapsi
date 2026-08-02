@@ -20,6 +20,9 @@ class Restaurant(models.Model):
 class UserManager(BaseUserManager):
     use_in_migrations = True
 
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)
+
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError("An email address is required.")
@@ -55,17 +58,60 @@ class User(AbstractUser):
     failed_login_count = models.PositiveSmallIntegerField(default=0)
     locked_until = models.DateTimeField(null=True, blank=True)
     pending_email = models.EmailField(blank=True)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS: list[str] = []
     objects = UserManager()
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["restaurant", "role"]),
+            models.Index(fields=["restaurant", "is_active", "is_deleted"]),
+        ]
+
     @property
     def display_name(self):
         return self.get_full_name() or self.email
 
+    def soft_delete(self):
+        from django.utils import timezone as tz
+        self.is_deleted = True
+        self.deleted_at = tz.now()
+        self.is_active = False
+        self.save(update_fields=["is_deleted", "deleted_at", "is_active"])
+
     def __str__(self):
         return self.email
+
+
+class StaffAudit(models.Model):
+    class Action(models.TextChoices):
+        ROLE_CHANGED = "ROLE_CHANGED", "Role changed"
+        DEACTIVATED = "DEACTIVATED", "Account deactivated"
+        ACTIVATED = "ACTIVATED", "Account activated"
+        SOFT_DELETED = "SOFT_DELETED", "Account soft-deleted"
+        PASSWORD_RESET = "PASSWORD_RESET", "Password reset by admin"
+        PROFILE_UPDATED = "PROFILE_UPDATED", "Profile updated by admin"
+
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.PROTECT, related_name="staff_audits")
+    actor = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="staff_actions_performed")
+    target = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name="staff_actions_received")
+    action = models.CharField(max_length=20, choices=Action.choices)
+    detail = models.JSONField(default=dict, blank=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=512, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [
+            models.Index(fields=["restaurant", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"{self.action}: {self.target} by {self.actor}"
 
 
 class AuthenticationAudit(models.Model):

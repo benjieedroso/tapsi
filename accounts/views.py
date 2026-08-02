@@ -17,8 +17,9 @@ from django.views import View
 from .forms import (
     CurrentPasswordChangeForm, EmailAuthenticationForm, EmailChangeForm,
     FirstPasswordChangeForm, ProfileForm, RegistrationForm, StaffUserForm,
+    StaffEditForm, RestaurantSettingsForm, AdminPasswordResetForm,
 )
-from .models import AuthenticationAudit, User
+from .models import AuthenticationAudit, StaffAudit, User
 from .services import (
     JWTError, audit_authentication, invalidate_other_sessions, is_locked,
     issue_token_pair, revoke_all_refresh_tokens, revoke_refresh_token, rotate_refresh_token,
@@ -250,11 +251,40 @@ def can_manage_staff(user):
     return user.is_authenticated and user.role in {User.Role.OWNER, User.Role.MANAGER}
 
 
+def can_manage_all_staff(user):
+    return user.is_authenticated and user.role == User.Role.OWNER
+
+
+def _log_staff_action(request, restaurant, action, target, detail=None):
+    StaffAudit.objects.create(
+        restaurant=restaurant,
+        actor=request.user,
+        target=target,
+        action=action,
+        detail=detail or {},
+        ip_address=_get_client_ip(request),
+        user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
+    )
+
+
+def _get_client_ip(request):
+    x_forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
+    return x_forwarded.split(",")[0].strip() if x_forwarded else request.META.get("REMOTE_ADDR")
+
+
+def _active_owners_count(restaurant):
+    return User.objects.filter(
+        restaurant=restaurant, role=User.Role.OWNER, is_active=True, is_deleted=False,
+    ).count()
+
+
 @user_passes_test(can_manage_staff)
 def create_staff(request):
     form = StaffUserForm(request.POST or None, actor=request.user)
     if request.method == "POST" and form.is_valid():
         member = form.save()
+        _log_staff_action(request, request.user.restaurant, StaffAudit.Action.PROFILE_UPDATED, member,
+                          detail={"event": "account_created"})
         messages.success(request, f"Created {member.display_name}'s staff account.")
         return redirect("accounts:staff_list")
     return render(request, "accounts/staff_form.html", {"form": form})
@@ -263,4 +293,121 @@ def create_staff(request):
 @user_passes_test(can_manage_staff)
 def staff_list(request):
     staff = request.user.restaurant.users.order_by("role", "first_name", "email")
+
+    if request.method == "POST" and request.user.role == User.Role.OWNER:
+        action = request.POST.get("action")
+        user_id = request.POST.get("user_id")
+
+        if not user_id:
+            messages.error(request, "Invalid request.")
+            return redirect("accounts:staff_list")
+
+        try:
+            target_user = User.objects.get(pk=user_id, restaurant=request.user.restaurant, is_deleted=False)
+        except User.DoesNotExist:
+            messages.error(request, "User not found.")
+            return redirect("accounts:staff_list")
+
+        if target_user.role == User.Role.OWNER and target_user == request.user:
+            messages.error(request, "You cannot modify your own account from here.")
+            return redirect("accounts:staff_list")
+
+        if target_user.role == User.Role.OWNER and target_user != request.user:
+            if action in ("deactivate",):
+                if _active_owners_count(request.user.restaurant) <= 1:
+                    messages.error(request, "Cannot deactivate the last active Owner account.")
+                    return redirect("accounts:staff_list")
+            else:
+                messages.error(request, "Cannot modify another Owner's account.")
+                return redirect("accounts:staff_list")
+
+        if action == "change_role":
+            new_role = request.POST.get("new_role")
+            if new_role in dict(User.Role.choices):
+                old_role = target_user.role
+                target_user.role = new_role
+                target_user.save(update_fields=["role"])
+                _log_staff_action(request, request.user.restaurant, StaffAudit.Action.ROLE_CHANGED, target_user,
+                                  detail={"old_role": old_role, "new_role": new_role})
+                messages.success(request, f"{target_user.display_name}'s role changed to {target_user.get_role_display()}.")
+            else:
+                messages.error(request, "Invalid role.")
+
+        elif action == "deactivate":
+            if target_user.role == User.Role.OWNER and _active_owners_count(request.user.restaurant) <= 1:
+                messages.error(request, "Cannot deactivate the last active Owner account.")
+                return redirect("accounts:staff_list")
+            target_user.is_active = False
+            target_user.save(update_fields=["is_active"])
+            _log_staff_action(request, request.user.restaurant, StaffAudit.Action.DEACTIVATED, target_user)
+            messages.success(request, f"{target_user.display_name} has been deactivated.")
+
+        elif action == "activate":
+            target_user.is_active = True
+            target_user.save(update_fields=["is_active"])
+            _log_staff_action(request, request.user.restaurant, StaffAudit.Action.ACTIVATED, target_user)
+            messages.success(request, f"{target_user.display_name} has been activated.")
+
+        return redirect("accounts:staff_list")
+
     return render(request, "accounts/staff_list.html", {"staff": staff})
+
+
+@user_passes_test(can_manage_all_staff)
+def staff_edit(request, user_id):
+    target_user = get_object_or_404(User, pk=user_id, restaurant=request.user.restaurant, is_deleted=False)
+
+    if target_user.role == User.Role.OWNER and target_user != request.user:
+        messages.error(request, "Cannot edit another Owner's account.")
+        return redirect("accounts:staff_list")
+
+    form = StaffEditForm(request.POST or None, instance=target_user)
+    if request.method == "POST" and form.is_valid():
+        old_data = {f: getattr(target_user, f) for f in ("first_name", "last_name", "phone", "role")}
+        form.save()
+        new_data = {f: getattr(target_user, f) for f in ("first_name", "last_name", "phone", "role")}
+        changes = {k: {"old": old_data[k], "new": new_data[k]} for k in old_data if old_data[k] != new_data[k]}
+        _log_staff_action(request, request.user.restaurant, StaffAudit.Action.PROFILE_UPDATED, target_user,
+                          detail={"changes": changes})
+        messages.success(request, f"{target_user.display_name}'s profile has been updated.")
+        return redirect("accounts:staff_list")
+
+    return render(request, "accounts/staff_edit.html", {"target_user": target_user, "form": form})
+
+
+@user_passes_test(can_manage_all_staff)
+def staff_reset_password(request, user_id):
+    target_user = get_object_or_404(User, pk=user_id, restaurant=request.user.restaurant, is_deleted=False)
+
+    if request.method == "POST":
+        form = AdminPasswordResetForm(request.POST)
+        if form.is_valid():
+            new_password = form.cleaned_data["new_password"]
+            target_user.set_password(new_password)
+            target_user.must_change_password = True
+            target_user.save(update_fields=["password", "must_change_password"])
+            revoke_all_refresh_tokens(target_user)
+            _log_staff_action(request, request.user.restaurant, StaffAudit.Action.PASSWORD_RESET, target_user)
+            messages.success(request, f"{target_user.display_name}'s password has been reset. They must change it on next login.")
+            return redirect("accounts:staff_list")
+    else:
+        form = AdminPasswordResetForm()
+
+    return render(request, "accounts/staff_reset_password.html", {"target_user": target_user, "form": form})
+
+
+@login_required
+def restaurant_settings(request):
+    if request.user.role != User.Role.OWNER:
+        messages.error(request, "Only the Owner can access restaurant settings.")
+        return redirect("dashboard")
+
+    restaurant = request.user.restaurant
+    form = RestaurantSettingsForm(request.POST or None, instance=restaurant)
+
+    if request.method == "POST" and form.is_valid():
+        form.save()
+        messages.success(request, "Restaurant settings updated.")
+        return redirect("accounts:restaurant_settings")
+
+    return render(request, "accounts/restaurant_settings.html", {"restaurant": restaurant, "form": form})

@@ -28,6 +28,9 @@
                 {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
                 <li><a href="{% url 'accounts:staff_list' %}" class="{% if request.resolver_match.url_name == 'staff_list' or request.resolver_match.url_name == 'create_staff' %}active{% endif %}">Staff</a></li>
                 {% endif %}
+                {% if user.role == 'OWNER' %}
+                <li><a href="{% url 'accounts:restaurant_settings' %}" class="{% if request.resolver_match.url_name == 'restaurant_settings' %}active{% endif %}">Settings</a></li>
+                {% endif %}
                 <li>
                     <form method="post" action="{% url 'accounts:logout' %}" style="display:inline">
                         {% csrf_token %}

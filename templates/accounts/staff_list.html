@@ -20,6 +20,7 @@
                 <th>Email</th>
                 <th>Role</th>
                 <th>Status</th>
+                <th style="text-align: right;">Actions</th>
             </tr>
         </thead>
         <tbody>
@@ -28,9 +29,15 @@
                 <td>{{ member.display_name }}</td>
                 <td>{{ member.email }}</td>
                 <td>
-                    <span class="badge badge-{{ member.role|lower }}">
-                        {{ member.get_role_display }}
-                    </span>
+                    {% if member != user and member.role != 'OWNER' %}
+                    <select class="role-select" data-user-id="{{ member.pk }}" data-user-name="{{ member.display_name }}" data-original-role="{{ member.role }}">
+                        <option value="MANAGER" {% if member.role == 'MANAGER' %}selected{% endif %}>Manager</option>
+                        <option value="CASHIER" {% if member.role == 'CASHIER' %}selected{% endif %}>Cashier</option>
+                        <option value="KITCHEN" {% if member.role == 'KITCHEN' %}selected{% endif %}>Kitchen</option>
+                    </select>
+                    {% else %}
+                    <span class="badge badge-{{ member.role|lower }}">{{ member.get_role_display }}</span>
+                    {% endif %}
                 </td>
                 <td>
                     {% if member.is_active %}
@@ -39,10 +46,25 @@
                     <span class="badge badge-error">Inactive</span>
                     {% endif %}
                 </td>
+                <td style="text-align: right;">
+                    {% if member != user and member.role != 'OWNER' %}
+                    <a href="{% url 'accounts:staff_edit' member.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                    <a href="{% url 'accounts:staff_reset_password' member.pk %}" class="btn btn-ghost btn-sm">Reset PW</a>
+                    {% if member.is_active %}
+                    <button class="btn btn-ghost btn-sm deactivate-btn" data-user-id="{{ member.pk }}" data-user-name="{{ member.display_name }}" style="color: var(--color-error);">
+                        Deactivate
+                    </button>
+                    {% else %}
+                    <button class="btn btn-ghost btn-sm activate-btn" data-user-id="{{ member.pk }}" data-user-name="{{ member.display_name }}" style="color: var(--tapsi-600);">
+                        Activate
+                    </button>
+                    {% endif %}
+                    {% endif %}
+                </td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="4" class="empty-state">
+                <td colspan="5" class="empty-state">
                     <h3>No staff accounts yet</h3>
                     <p>Add your first staff member to get started.</p>
                 </td>
@@ -51,4 +73,96 @@
         </tbody>
     </table>
 </div>
+
+<!-- Confirm Deactivate Modal -->
+<div class="modal-overlay" id="deactivateModal" style="display: none;">
+    <div class="modal">
+        <h3>Deactivate Staff Member</h3>
+        <p>Are you sure you want to deactivate <strong id="deactivateUserName"></strong>? They will not be able to log in until reactivated.</p>
+        <div style="display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-6);">
+            <button class="btn btn-secondary" onclick="closeModal('deactivateModal')">Cancel</button>
+            <form method="post" id="deactivateForm" style="display: inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="deactivate">
+                <input type="hidden" name="user_id" id="deactivateUserId">
+                <button type="submit" class="btn btn-primary" style="background: var(--color-error);">Deactivate</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Confirm Activate Modal -->
+<div class="modal-overlay" id="activateModal" style="display: none;">
+    <div class="modal">
+        <h3>Activate Staff Member</h3>
+        <p>Are you sure you want to activate <strong id="activateUserName"></strong>?</p>
+        <div style="display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-6);">
+            <button class="btn btn-secondary" onclick="closeModal('activateModal')">Cancel</button>
+            <form method="post" id="activateForm" style="display: inline;">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="activate">
+                <input type="hidden" name="user_id" id="activateUserId">
+                <button type="submit" class="btn btn-primary">Activate</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Role change
+document.querySelectorAll('.role-select').forEach(select => {
+    select.addEventListener('change', function() {
+        const userId = this.dataset.userId;
+        const userName = this.dataset.userName;
+        const newRole = this.value;
+
+        if (confirm(`Change ${userName}'s role to ${newRole}?`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.innerHTML = `
+                {% csrf_token %}
+                <input type="hidden" name="action" value="change_role">
+                <input type="hidden" name="user_id" value="${userId}">
+                <input type="hidden" name="new_role" value="${newRole}">
+            `;
+            document.body.appendChild(form);
+            form.submit();
+        } else {
+            this.value = this.dataset.originalRole;
+        }
+    });
+});
+
+// Deactivate modal
+document.querySelectorAll('.deactivate-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.getElementById('deactivateUserId').value = this.dataset.userId;
+        document.getElementById('deactivateUserName').textContent = this.dataset.userName;
+        document.getElementById('deactivateModal').style.display = 'flex';
+    });
+});
+
+// Activate modal
+document.querySelectorAll('.activate-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.getElementById('activateUserId').value = this.dataset.userId;
+        document.getElementById('activateUserName').textContent = this.dataset.userName;
+        document.getElementById('activateModal').style.display = 'flex';
+    });
+});
+
+// Close modal
+function closeModal(id) {
+    document.getElementById(id).style.display = 'none';
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    overlay.addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.style.display = 'none';
+        }
+    });
+});
+</script>
 {% endblock %}

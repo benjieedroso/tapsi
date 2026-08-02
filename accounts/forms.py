@@ -166,3 +166,42 @@ class EmailChangeForm(StyledFormMixin, forms.Form):
         if User.objects.filter(email__iexact=email).exists():
             raise ValidationError("An account already uses this email address.")
         return email
+
+
+class StaffEditForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = User
+        fields = ("first_name", "last_name", "phone", "role")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._apply_classes()
+
+    def clean_role(self):
+        role = self.cleaned_data["role"]
+        if role == User.Role.OWNER:
+            raise ValidationError("Cannot assign Owner role through edit. Use registration instead.")
+        return role
+
+
+class RestaurantSettingsForm(StyledFormMixin, forms.ModelForm):
+    class Meta:
+        model = Restaurant
+        fields = ("name", "address", "contact_number", "tin", "receipt_footer", "is_vat_registered")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._apply_classes()
+
+
+class AdminPasswordResetForm(StyledFormMixin, forms.Form):
+    new_password = forms.CharField(widget=forms.PasswordInput, help_text="The staff member must change this on first login.")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._apply_classes()
+
+    def clean_new_password(self):
+        password = self.cleaned_data["new_password"]
+        password_validation.validate_password(password)
+        return password

@@ -5,7 +5,7 @@ import json
 from django.urls import reverse
 
 from .forms import RegistrationForm
-from .models import AuthenticationAudit, RefreshToken, User
+from .models import AuthenticationAudit, RefreshToken, StaffAudit, User
 from .services import decode_jwt
 
 
@@ -197,3 +197,252 @@ class AuthenticationSecurityTests(TestCase):
         self.assertEqual(self.client.post(reverse("accounts:api_token_refresh"), data=json.dumps({
             "refresh": rotated_refresh,
         }), content_type="application/json").status_code, 401)
+
+
+# ── Module 2: Restaurant & User Management Tests ──
+
+
+class Module2TestBase(TestCase):
+    """Shared setUp for Module 2 tests: creates an owner + restaurant + staff."""
+    def setUp(self):
+        form = RegistrationForm(data={
+            "restaurant_name": "Tapsi Lahat",
+            "first_name": "Maria",
+            "last_name": "Santos",
+            "email": "maria@tapsi.test",
+            "password1": "SecurePass123",
+            "password2": "SecurePass123",
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        self.owner = form.save()
+        self.restaurant = self.owner.restaurant
+
+        self.cashier = User.objects.create_user(
+            email="cashier@tapsi.test", password="SecurePass123",
+            first_name="Juan", last_name="Dela Cruz",
+            restaurant=self.restaurant, role=User.Role.CASHIER,
+        )
+        self.kitchen = User.objects.create_user(
+            email="kitchen@tapsi.test", password="SecurePass123",
+            first_name="Pedro", last_name="Garcia",
+            restaurant=self.restaurant, role=User.Role.KITCHEN,
+        )
+
+
+class RestaurantSettingsTests(Module2TestBase):
+    def test_owner_can_view_settings(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(reverse("accounts:restaurant_settings"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tapsi Lahat")
+
+    def test_manager_cannot_view_settings(self):
+        manager = User.objects.create_user(
+            email="manager@tapsi.test", password="SecurePass123",
+            restaurant=self.restaurant, role=User.Role.MANAGER,
+        )
+        self.client.force_login(manager)
+        response = self.client.get(reverse("accounts:restaurant_settings"))
+        self.assertRedirects(response, reverse("dashboard"))
+
+    def test_owner_can_update_settings(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:restaurant_settings"), {
+            "name": "Tapsi Lahat Updated",
+            "address": "123 Rizal Ave, Manila",
+            "contact_number": "09171234567",
+            "tin": "123-456-789-000",
+            "receipt_footer": "Maraming salamat po!",
+            "is_vat_registered": "on",
+        })
+        self.assertRedirects(response, reverse("accounts:restaurant_settings"))
+        self.restaurant.refresh_from_db()
+        self.assertEqual(self.restaurant.name, "Tapsi Lahat Updated")
+        self.assertEqual(self.restaurant.tin, "123-456-789-000")
+        self.assertTrue(self.restaurant.is_vat_registered)
+
+
+class StaffRoleChangeTests(Module2TestBase):
+    def test_owner_can_change_staff_role(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_list"), {
+            "action": "change_role",
+            "user_id": self.cashier.pk,
+            "new_role": User.Role.KITCHEN,
+        })
+        self.assertRedirects(response, reverse("accounts:staff_list"))
+        self.cashier.refresh_from_db()
+        self.assertEqual(self.cashier.role, User.Role.KITCHEN)
+
+    def test_role_change_creates_audit_log(self):
+        self.client.force_login(self.owner)
+        self.client.post(reverse("accounts:staff_list"), {
+            "action": "change_role",
+            "user_id": self.cashier.pk,
+            "new_role": User.Role.MANAGER,
+        })
+        audit = StaffAudit.objects.get(target=self.cashier, action=StaffAudit.Action.ROLE_CHANGED)
+        self.assertEqual(audit.detail["old_role"], User.Role.CASHIER)
+        self.assertEqual(audit.detail["new_role"], User.Role.MANAGER)
+        self.assertEqual(audit.actor, self.owner)
+
+    def test_manager_cannot_change_role(self):
+        manager = User.objects.create_user(
+            email="manager@tapsi.test", password="SecurePass123",
+            restaurant=self.restaurant, role=User.Role.MANAGER,
+        )
+        self.client.force_login(manager)
+        response = self.client.post(reverse("accounts:staff_list"), {
+            "action": "change_role",
+            "user_id": self.cashier.pk,
+            "new_role": User.Role.KITCHEN,
+        })
+        # Manager's POST is ignored (view only processes actions for Owners); returns staff list
+        self.assertEqual(response.status_code, 200)
+        self.cashier.refresh_from_db()
+        self.assertEqual(self.cashier.role, User.Role.CASHIER)
+
+
+class StaffDeactivationTests(Module2TestBase):
+    def test_owner_can_deactivate_staff(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_list"), {
+            "action": "deactivate",
+            "user_id": self.cashier.pk,
+        })
+        self.assertRedirects(response, reverse("accounts:staff_list"))
+        self.cashier.refresh_from_db()
+        self.assertFalse(self.cashier.is_active)
+
+    def test_deactivation_creates_audit_log(self):
+        self.client.force_login(self.owner)
+        self.client.post(reverse("accounts:staff_list"), {
+            "action": "deactivate",
+            "user_id": self.cashier.pk,
+        })
+        self.assertTrue(StaffAudit.objects.filter(
+            target=self.cashier, action=StaffAudit.Action.DEACTIVATED,
+        ).exists())
+
+    def test_owner_can_reactivate_staff(self):
+        self.cashier.is_active = False
+        self.cashier.save(update_fields=["is_active"])
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_list"), {
+            "action": "activate",
+            "user_id": self.cashier.pk,
+        })
+        self.assertRedirects(response, reverse("accounts:staff_list"))
+        self.cashier.refresh_from_db()
+        self.assertTrue(self.cashier.is_active)
+
+    def test_reactivation_creates_audit_log(self):
+        self.cashier.is_active = False
+        self.cashier.save(update_fields=["is_active"])
+        self.client.force_login(self.owner)
+        self.client.post(reverse("accounts:staff_list"), {
+            "action": "activate",
+            "user_id": self.cashier.pk,
+        })
+        self.assertTrue(StaffAudit.objects.filter(
+            target=self.cashier, action=StaffAudit.Action.ACTIVATED,
+        ).exists())
+
+
+class LastOwnerProtectionTests(Module2TestBase):
+    def test_cannot_deactivate_last_active_owner(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_list"), {
+            "action": "deactivate",
+            "user_id": self.owner.pk,
+        })
+        self.assertRedirects(response, reverse("accounts:staff_list"))
+        self.owner.refresh_from_db()
+        self.assertTrue(self.owner.is_active)
+
+    def test_can_deactivate_owner_when_two_exist(self):
+        second_owner = User.objects.create_user(
+            email="owner2@tapsi.test", password="SecurePass123",
+            restaurant=self.restaurant, role=User.Role.OWNER,
+        )
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_list"), {
+            "action": "deactivate",
+            "user_id": second_owner.pk,
+        })
+        self.assertRedirects(response, reverse("accounts:staff_list"))
+        second_owner.refresh_from_db()
+        self.assertFalse(second_owner.is_active)
+
+
+class SoftDeleteTests(Module2TestBase):
+    def test_user_soft_delete_sets_fields(self):
+        from django.utils import timezone as tz
+        self.cashier.soft_delete()
+        self.cashier.refresh_from_db()
+        self.assertTrue(self.cashier.is_deleted)
+        self.assertIsNotNone(self.cashier.deleted_at)
+        self.assertFalse(self.cashier.is_active)
+
+    def test_soft_deleted_user_excluded_from_default_manager(self):
+        self.cashier.soft_delete()
+        self.assertFalse(User.objects.filter(pk=self.cashier.pk).exists())
+
+
+class StaffEditTests(Module2TestBase):
+    def test_owner_can_edit_staff(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_edit", args=[self.cashier.pk]), {
+            "first_name": "Juanito",
+            "last_name": "Dela Cruz",
+            "phone": "09171234567",
+            "role": User.Role.CASHIER,
+        })
+        self.assertRedirects(response, reverse("accounts:staff_list"))
+        self.cashier.refresh_from_db()
+        self.assertEqual(self.cashier.first_name, "Juanito")
+        self.assertEqual(self.cashier.phone, "09171234567")
+
+    def test_edit_creates_audit_log(self):
+        self.client.force_login(self.owner)
+        self.client.post(reverse("accounts:staff_edit", args=[self.cashier.pk]), {
+            "first_name": "Juanito",
+            "last_name": "Dela Cruz",
+            "phone": "09171234567",
+            "role": User.Role.CASHIER,
+        })
+        audit = StaffAudit.objects.get(target=self.cashier, action=StaffAudit.Action.PROFILE_UPDATED)
+        self.assertIn("changes", audit.detail)
+
+    def test_cannot_assign_owner_role_via_edit(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_edit", args=[self.cashier.pk]), {
+            "first_name": "Juan",
+            "last_name": "Dela Cruz",
+            "phone": "",
+            "role": User.Role.OWNER,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.cashier.refresh_from_db()
+        self.assertEqual(self.cashier.role, User.Role.CASHIER)
+
+
+class StaffPasswordResetTests(Module2TestBase):
+    def test_owner_can_reset_staff_password(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_reset_password", args=[self.cashier.pk]), {
+            "new_password": "NewSecurePass456",
+        })
+        self.assertRedirects(response, reverse("accounts:staff_list"))
+        self.cashier.refresh_from_db()
+        self.assertTrue(self.cashier.check_password("NewSecurePass456"))
+        self.assertTrue(self.cashier.must_change_password)
+
+    def test_password_reset_creates_audit_log(self):
+        self.client.force_login(self.owner)
+        self.client.post(reverse("accounts:staff_reset_password", args=[self.cashier.pk]), {
+            "new_password": "NewSecurePass456",
+        })
+        self.assertTrue(StaffAudit.objects.filter(
+            target=self.cashier, action=StaffAudit.Action.PASSWORD_RESET,
+        ).exists())

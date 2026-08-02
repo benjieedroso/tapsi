@@ -21,4 +21,7 @@ urlpatterns = [
     path("profile/email/verify/<uidb64>/<token>/", views.verify_email_change, name="verify_email"),
     path("staff/", views.staff_list, name="staff_list"),
     path("staff/new/", views.create_staff, name="create_staff"),
+    path("staff/<int:user_id>/edit/", views.staff_edit, name="staff_edit"),
+    path("staff/<int:user_id>/reset-password/", views.staff_reset_password, name="staff_reset_password"),
+    path("settings/", views.restaurant_settings, name="restaurant_settings"),
 ]
