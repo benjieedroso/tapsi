@@ -16,23 +16,27 @@
             <h3 class="settings-section-title">Business Information</h3>
 
             <div class="field">
-                <label for="id_name">Restaurant Name</label>
-                <input type="text" id="id_name" name="name" value="{{ restaurant.name }}" required>
+                {{ form.name.label_tag }}
+                {{ form.name }}
+                {% if form.name.errors %}<ul class="errorlist"><li>{{ form.name.errors.0 }}</li></ul>{% endif %}
             </div>
 
             <div class="field">
-                <label for="id_address">Address</label>
-                <textarea id="id_address" name="address" rows="3">{{ restaurant.address }}</textarea>
+                {{ form.address.label_tag }}
+                {{ form.address }}
+                {% if form.address.errors %}<ul class="errorlist"><li>{{ form.address.errors.0 }}</li></ul>{% endif %}
             </div>
 
             <div class="field-row">
                 <div class="field">
-                    <label for="id_contact_number">Contact Number</label>
-                    <input type="text" id="id_contact_number" name="contact_number" value="{{ restaurant.contact_number }}" placeholder="09171234567">
+                    {{ form.contact_number.label_tag }}
+                    {{ form.contact_number }}
+                    {% if form.contact_number.errors %}<ul class="errorlist"><li>{{ form.contact_number.errors.0 }}</li></ul>{% endif %}
                 </div>
                 <div class="field">
-                    <label for="id_tin">TIN</label>
-                    <input type="text" id="id_tin" name="tin" value="{{ restaurant.tin }}" placeholder="123-456-789-000">
+                    {{ form.tin.label_tag }}
+                    {{ form.tin }}
+                    {% if form.tin.errors %}<ul class="errorlist"><li>{{ form.tin.errors.0 }}</li></ul>{% endif %}
                 </div>
             </div>
         </div>
@@ -41,16 +45,18 @@
             <h3 class="settings-section-title">Receipt Settings</h3>
 
             <div class="field">
-                <label for="id_receipt_footer">Receipt Footer Message</label>
-                <input type="text" id="id_receipt_footer" name="receipt_footer" value="{{ restaurant.receipt_footer }}" placeholder="Salamat po! Balik kayo!">
+                {{ form.receipt_footer.label_tag }}
+                {{ form.receipt_footer }}
+                {% if form.receipt_footer.errors %}<ul class="errorlist"><li>{{ form.receipt_footer.errors.0 }}</li></ul>{% endif %}
                 <small>Message displayed at the bottom of printed receipts.</small>
             </div>
 
             <div class="field">
                 <label class="checkbox-label">
-                    <input type="checkbox" id="id_is_vat_registered" name="is_vat_registered" {% if restaurant.is_vat_registered %}checked{% endif %}>
-                    <span>VAT Registered</span>
+                    {{ form.is_vat_registered }}
+                    <span>{{ form.is_vat_registered.label }}</span>
                 </label>
+                {% if form.is_vat_registered.errors %}<ul class="errorlist"><li>{{ form.is_vat_registered.errors.0 }}</li></ul>{% endif %}
                 <small>Check if your restaurant is registered for VAT (12% output tax).</small>
             </div>
         </div>

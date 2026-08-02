@@ -7,6 +7,10 @@ from django.db import transaction
 from django.utils import timezone
 
 from .models import Restaurant, User
+from .validators import validate_name, validate_phone, validate_tin
+
+MAX_NAME_LENGTH = 150
+MAX_ADDRESS_LENGTH = 500
 
 
 class StyledFormMixin:
@@ -27,8 +31,30 @@ class RegistrationForm(StyledFormMixin, forms.Form):
         super().__init__(*args, **kwargs)
         self._apply_classes()
 
+    def clean_restaurant_name(self):
+        value = self.cleaned_data["restaurant_name"]
+        if not value or not value.strip():
+            raise ValidationError("Restaurant name cannot be blank.")
+        if len(value.strip()) < 2:
+            raise ValidationError("Restaurant name must be at least 2 characters.")
+        return value.strip()
+
+    def clean_first_name(self):
+        value = self.cleaned_data["first_name"]
+        if not value or not value.strip():
+            raise ValidationError("First name cannot be blank.")
+        if len(value.strip()) < 2:
+            raise ValidationError("First name must be at least 2 characters.")
+        return value.strip()
+
+    def clean_last_name(self):
+        value = self.cleaned_data.get("last_name", "")
+        if value and len(value.strip()) < 2:
+            raise ValidationError("Last name must be at least 2 characters.")
+        return value.strip()
+
     def clean_email(self):
-        email = self.cleaned_data["email"].lower()
+        email = self.cleaned_data["email"].lower().strip()
         if User.objects.filter(email__iexact=email).exists():
             raise ValidationError("An account already uses this email address.")
         return email
@@ -94,8 +120,29 @@ class StaffUserForm(StyledFormMixin, forms.ModelForm):
             self.fields["role"].choices = [(User.Role.CASHIER, "Cashier"), (User.Role.KITCHEN, "Kitchen")]
         self._apply_classes()
 
+    def clean_first_name(self):
+        value = self.cleaned_data.get("first_name", "")
+        if not value or not value.strip():
+            raise ValidationError("First name cannot be blank.")
+        if len(value.strip()) < 2:
+            raise ValidationError("First name must be at least 2 characters.")
+        return value.strip()
+
+    def clean_last_name(self):
+        value = self.cleaned_data.get("last_name", "")
+        if value and len(value.strip()) < 2:
+            raise ValidationError("Last name must be at least 2 characters.")
+        return value.strip()
+
+    def clean_phone(self):
+        value = self.cleaned_data.get("phone", "")
+        if value:
+            value = value.strip()
+            validate_phone(value)
+        return value
+
     def clean_email(self):
-        email = self.cleaned_data["email"].lower()
+        email = self.cleaned_data["email"].lower().strip()
         if User.objects.filter(email__iexact=email).exists():
             raise ValidationError("An account already uses this email address.")
         return email
@@ -150,6 +197,27 @@ class ProfileForm(StyledFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self._apply_classes()
 
+    def clean_first_name(self):
+        value = self.cleaned_data.get("first_name", "")
+        if not value or not value.strip():
+            raise ValidationError("First name cannot be blank.")
+        if len(value.strip()) < 2:
+            raise ValidationError("First name must be at least 2 characters.")
+        return value.strip()
+
+    def clean_last_name(self):
+        value = self.cleaned_data.get("last_name", "")
+        if value and len(value.strip()) < 2:
+            raise ValidationError("Last name must be at least 2 characters.")
+        return value.strip()
+
+    def clean_phone(self):
+        value = self.cleaned_data.get("phone", "")
+        if value:
+            value = value.strip()
+            validate_phone(value)
+        return value
+
 
 class EmailChangeForm(StyledFormMixin, forms.Form):
     email = forms.EmailField(label="New email address")
@@ -160,7 +228,7 @@ class EmailChangeForm(StyledFormMixin, forms.Form):
         self._apply_classes()
 
     def clean_email(self):
-        email = self.cleaned_data["email"].lower()
+        email = self.cleaned_data["email"].lower().strip()
         if email == self.user.email:
             raise ValidationError("This is already your email address.")
         if User.objects.filter(email__iexact=email).exists():
@@ -177,6 +245,27 @@ class StaffEditForm(StyledFormMixin, forms.ModelForm):
         super().__init__(*args, **kwargs)
         self._apply_classes()
 
+    def clean_first_name(self):
+        value = self.cleaned_data.get("first_name", "")
+        if not value or not value.strip():
+            raise ValidationError("First name cannot be blank.")
+        if len(value.strip()) < 2:
+            raise ValidationError("First name must be at least 2 characters.")
+        return value.strip()
+
+    def clean_last_name(self):
+        value = self.cleaned_data.get("last_name", "")
+        if value and len(value.strip()) < 2:
+            raise ValidationError("Last name must be at least 2 characters.")
+        return value.strip()
+
+    def clean_phone(self):
+        value = self.cleaned_data.get("phone", "")
+        if value:
+            value = value.strip()
+            validate_phone(value)
+        return value
+
     def clean_role(self):
         role = self.cleaned_data["role"]
         if role == User.Role.OWNER:
@@ -188,10 +277,47 @@ class RestaurantSettingsForm(StyledFormMixin, forms.ModelForm):
     class Meta:
         model = Restaurant
         fields = ("name", "address", "contact_number", "tin", "receipt_footer", "is_vat_registered")
+        labels = {
+            "name": "Restaurant Name",
+            "contact_number": "Contact Number",
+            "receipt_footer": "Receipt Footer Message",
+            "is_vat_registered": "VAT Registered",
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._apply_classes()
+
+    def clean_name(self):
+        value = self.cleaned_data.get("name", "")
+        if not value or not value.strip():
+            raise ValidationError("Restaurant name cannot be blank.")
+        if len(value.strip()) < 2:
+            raise ValidationError("Restaurant name must be at least 2 characters.")
+        return value.strip()
+
+    def clean_contact_number(self):
+        value = self.cleaned_data.get("contact_number", "")
+        if value:
+            value = value.strip()
+            validate_phone(value)
+        return value
+
+    def clean_tin(self):
+        value = self.cleaned_data.get("tin", "")
+        if value:
+            value = value.strip()
+            validate_tin(value)
+        return value
+
+    def clean_address(self):
+        value = self.cleaned_data.get("address", "").strip()
+        if len(value) > MAX_ADDRESS_LENGTH:
+            raise ValidationError(f"Address must be {MAX_ADDRESS_LENGTH} characters or fewer.")
+        return value
+
+    def clean_receipt_footer(self):
+        return self.cleaned_data.get("receipt_footer", "").strip()
 
 
 class AdminPasswordResetForm(StyledFormMixin, forms.Form):

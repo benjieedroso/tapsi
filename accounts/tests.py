@@ -446,3 +446,438 @@ class StaffPasswordResetTests(Module2TestBase):
         self.assertTrue(StaffAudit.objects.filter(
             target=self.cashier, action=StaffAudit.Action.PASSWORD_RESET,
         ).exists())
+
+
+# ── Validation Tests (Module 1 & Module 2) ──
+
+
+class RegistrationValidationTests(TestCase):
+    def test_rejects_blank_restaurant_name(self):
+        form = RegistrationForm(data={
+            "restaurant_name": "   ",
+            "first_name": "Maria",
+            "email": "maria@test.com",
+            "password1": "SecurePass123",
+            "password2": "SecurePass123",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("restaurant_name", form.errors)
+
+    def test_rejects_single_char_restaurant_name(self):
+        form = RegistrationForm(data={
+            "restaurant_name": "A",
+            "first_name": "Maria",
+            "email": "maria@test.com",
+            "password1": "SecurePass123",
+            "password2": "SecurePass123",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("restaurant_name", form.errors)
+
+    def test_rejects_blank_first_name(self):
+        form = RegistrationForm(data={
+            "restaurant_name": "Tapsi Lahat",
+            "first_name": "   ",
+            "email": "maria@test.com",
+            "password1": "SecurePass123",
+            "password2": "SecurePass123",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("first_name", form.errors)
+
+    def test_trims_whitespace_from_names(self):
+        form = RegistrationForm(data={
+            "restaurant_name": "  Tapsi Lahat  ",
+            "first_name": "  Maria  ",
+            "last_name": "  Santos  ",
+            "email": "maria@test.com",
+            "password1": "SecurePass123",
+            "password2": "SecurePass123",
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(form.cleaned_data["restaurant_name"], "Tapsi Lahat")
+        self.assertEqual(form.cleaned_data["first_name"], "Maria")
+
+    def test_rejects_duplicate_email(self):
+        User.objects.create_user(email="taken@test.com", password="SecurePass123")
+        form = RegistrationForm(data={
+            "restaurant_name": "Tapsi Lahat",
+            "first_name": "Maria",
+            "email": "taken@test.com",
+            "password1": "SecurePass123",
+            "password2": "SecurePass123",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+
+    def test_email_is_case_insensitive(self):
+        User.objects.create_user(email="existing@test.com", password="SecurePass123")
+        form = RegistrationForm(data={
+            "restaurant_name": "Tapsi Lahat",
+            "first_name": "Maria",
+            "email": "EXISTING@TEST.COM",
+            "password1": "SecurePass123",
+            "password2": "SecurePass123",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("email", form.errors)
+
+    def test_rejects_mismatched_passwords(self):
+        form = RegistrationForm(data={
+            "restaurant_name": "Tapsi Lahat",
+            "first_name": "Maria",
+            "email": "maria@test.com",
+            "password1": "SecurePass123",
+            "password2": "DifferentPass123",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("password2", form.errors)
+
+
+class StaffFormValidationTests(Module2TestBase):
+    def test_create_staff_rejects_blank_first_name(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:create_staff"), {
+            "first_name": "   ",
+            "last_name": "Santos",
+            "email": "new@test.com",
+            "role": User.Role.CASHIER,
+            "temporary_password": "SecurePass123",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(email="new@test.com").exists())
+
+    def test_create_staff_rejects_single_char_first_name(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:create_staff"), {
+            "first_name": "M",
+            "last_name": "Santos",
+            "email": "new@test.com",
+            "role": User.Role.CASHIER,
+            "temporary_password": "SecurePass123",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(email="new@test.com").exists())
+
+    def test_create_staff_rejects_invalid_phone(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:create_staff"), {
+            "first_name": "Maria",
+            "last_name": "Santos",
+            "email": "new@test.com",
+            "phone": "not-a-phone!",
+            "role": User.Role.CASHIER,
+            "temporary_password": "SecurePass123",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(email="new@test.com").exists())
+
+    def test_create_staff_rejects_too_long_phone(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:create_staff"), {
+            "first_name": "Maria",
+            "last_name": "Santos",
+            "email": "new@test.com",
+            "phone": "092749286112",
+            "role": User.Role.CASHIER,
+            "temporary_password": "SecurePass123",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(email="new@test.com").exists())
+
+    def test_create_staff_rejects_duplicate_email(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:create_staff"), {
+            "first_name": "Maria",
+            "last_name": "Santos",
+            "email": self.cashier.email,
+            "role": User.Role.CASHIER,
+            "temporary_password": "SecurePass123",
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_create_staff_rejects_weak_password(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:create_staff"), {
+            "first_name": "Maria",
+            "last_name": "Santos",
+            "email": "new@test.com",
+            "role": User.Role.CASHIER,
+            "temporary_password": "short",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(email="new@test.com").exists())
+
+    def test_edit_staff_rejects_blank_first_name(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_edit", args=[self.cashier.pk]), {
+            "first_name": "   ",
+            "last_name": "Dela Cruz",
+            "phone": "09171234567",
+            "role": User.Role.CASHIER,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.cashier.refresh_from_db()
+        self.assertNotEqual(self.cashier.first_name, "")
+
+    def test_edit_staff_rejects_invalid_phone(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_edit", args=[self.cashier.pk]), {
+            "first_name": "Juan",
+            "last_name": "Dela Cruz",
+            "phone": "abc!@#",
+            "role": User.Role.CASHIER,
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_edit_staff_rejects_owner_role(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_edit", args=[self.cashier.pk]), {
+            "first_name": "Juan",
+            "last_name": "Dela Cruz",
+            "phone": "09171234567",
+            "role": User.Role.OWNER,
+        })
+        self.assertEqual(response.status_code, 200)
+        self.cashier.refresh_from_db()
+        self.assertEqual(self.cashier.role, User.Role.CASHIER)
+
+    def test_create_staff_accepts_valid_philippine_phone_formats(self):
+        self.client.force_login(self.owner)
+        phones = ["09171234567", "+639171234567", "0917 123 4567", "+63 917 123 4567"]
+        for idx, phone in enumerate(phones):
+            response = self.client.post(reverse("accounts:create_staff"), {
+                "first_name": "Maria",
+                "last_name": "Santos",
+                "email": f"test_phone_{idx}@test.com",
+                "phone": phone,
+                "role": User.Role.CASHIER,
+                "temporary_password": "SecurePass123",
+            })
+            self.assertRedirects(response, reverse("accounts:staff_list"), msg_prefix=f"Failed for phone: {phone}")
+
+
+class RestaurantSettingsValidationTests(Module2TestBase):
+    def test_rejects_blank_restaurant_name(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:restaurant_settings"), {
+            "name": "   ",
+            "address": "123 Rizal Ave",
+            "contact_number": "09171234567",
+            "tin": "123-456-789-000",
+            "receipt_footer": "Salamat po!",
+            "is_vat_registered": "on",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.restaurant.refresh_from_db()
+        self.assertEqual(self.restaurant.name, "Tapsi Lahat")
+
+    def test_rejects_single_char_restaurant_name(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:restaurant_settings"), {
+            "name": "A",
+            "address": "123 Rizal Ave",
+            "contact_number": "09171234567",
+            "tin": "123-456-789-000",
+            "receipt_footer": "Salamat po!",
+            "is_vat_registered": "on",
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_rejects_invalid_tin_format(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:restaurant_settings"), {
+            "name": "Tapsi Lahat",
+            "address": "123 Rizal Ave",
+            "contact_number": "09171234567",
+            "tin": "123456789000",
+            "receipt_footer": "Salamat po!",
+            "is_vat_registered": "on",
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_accepts_valid_tin_format(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:restaurant_settings"), {
+            "name": "Tapsi Lahat",
+            "address": "123 Rizal Ave",
+            "contact_number": "09171234567",
+            "tin": "123-456-789-000",
+            "receipt_footer": "Salamat po!",
+            "is_vat_registered": "on",
+        })
+        self.assertRedirects(response, reverse("accounts:restaurant_settings"))
+
+    def test_rejects_invalid_phone_in_settings(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:restaurant_settings"), {
+            "name": "Tapsi Lahat",
+            "address": "123 Rizal Ave",
+            "contact_number": "not-a-phone!",
+            "tin": "123-456-789-000",
+            "receipt_footer": "Salamat po!",
+            "is_vat_registered": "on",
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_accepts_blank_tin_and_phone(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:restaurant_settings"), {
+            "name": "Tapsi Lahat",
+            "address": "123 Rizal Ave",
+            "contact_number": "",
+            "tin": "",
+            "receipt_footer": "Salamat po!",
+            "is_vat_registered": "on",
+        })
+        self.assertRedirects(response, reverse("accounts:restaurant_settings"))
+
+    def test_trims_whitespace_from_name(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:restaurant_settings"), {
+            "name": "  Tapsi Lahat Updated  ",
+            "address": "123 Rizal Ave",
+            "contact_number": "",
+            "tin": "",
+            "receipt_footer": "Salamat po!",
+            "is_vat_registered": "on",
+        })
+        self.assertRedirects(response, reverse("accounts:restaurant_settings"))
+        self.restaurant.refresh_from_db()
+        self.assertEqual(self.restaurant.name, "Tapsi Lahat Updated")
+
+
+class ProfileValidationTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="owner@test.com", password="SecurePass123", role=User.Role.OWNER,
+            first_name="Maria", last_name="Santos",
+        )
+        self.client.force_login(self.user)
+
+    def test_rejects_blank_first_name(self):
+        response = self.client.post(reverse("accounts:profile"), {
+            "first_name": "   ",
+            "last_name": "Santos",
+            "phone": "09171234567",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "Maria")
+
+    def test_rejects_single_char_first_name(self):
+        response = self.client.post(reverse("accounts:profile"), {
+            "first_name": "M",
+            "last_name": "Santos",
+            "phone": "09171234567",
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_rejects_invalid_phone(self):
+        response = self.client.post(reverse("accounts:profile"), {
+            "first_name": "Maria",
+            "last_name": "Santos",
+            "phone": "abc!@#",
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_accepts_blank_phone(self):
+        response = self.client.post(reverse("accounts:profile"), {
+            "first_name": "Maria",
+            "last_name": "Santos",
+            "phone": "",
+        })
+        self.assertRedirects(response, reverse("accounts:profile"))
+
+    def test_trims_first_name_whitespace(self):
+        response = self.client.post(reverse("accounts:profile"), {
+            "first_name": "  Maria  ",
+            "last_name": "Santos",
+            "phone": "09171234567",
+        })
+        self.assertRedirects(response, reverse("accounts:profile"))
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.first_name, "Maria")
+
+
+# ── Length Validation Tests ──
+
+
+class LengthValidationTests(Module2TestBase):
+    def test_registration_rejects_short_last_name(self):
+        form = RegistrationForm(data={
+            "restaurant_name": "Tapsi Lahat",
+            "first_name": "Maria",
+            "last_name": "X",
+            "email": "maria@test.com",
+            "password1": "SecurePass123",
+            "password2": "SecurePass123",
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn("last_name", form.errors)
+
+    def test_registration_accepts_blank_last_name(self):
+        form = RegistrationForm(data={
+            "restaurant_name": "Tapsi Lahat",
+            "first_name": "Maria",
+            "last_name": "",
+            "email": "maria@test.com",
+            "password1": "SecurePass123",
+            "password2": "SecurePass123",
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_create_staff_rejects_short_last_name(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:create_staff"), {
+            "first_name": "Maria",
+            "last_name": "X",
+            "email": "new@test.com",
+            "role": User.Role.CASHIER,
+            "temporary_password": "SecurePass123",
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(User.objects.filter(email="new@test.com").exists())
+
+    def test_edit_staff_rejects_short_last_name(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:staff_edit", args=[self.cashier.pk]), {
+            "first_name": "Juan",
+            "last_name": "X",
+            "phone": "09171234567",
+            "role": User.Role.CASHIER,
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_profile_rejects_short_last_name(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:profile"), {
+            "first_name": "Maria",
+            "last_name": "X",
+            "phone": "09171234567",
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_settings_rejects_too_long_address(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:restaurant_settings"), {
+            "name": "Tapsi Lahat",
+            "address": "A" * 501,
+            "contact_number": "",
+            "tin": "",
+            "receipt_footer": "",
+            "is_vat_registered": "on",
+        })
+        self.assertEqual(response.status_code, 200)
+
+    def test_settings_accepts_max_address(self):
+        self.client.force_login(self.owner)
+        response = self.client.post(reverse("accounts:restaurant_settings"), {
+            "name": "Tapsi Lahat",
+            "address": "A" * 500,
+            "contact_number": "",
+            "tin": "",
+            "receipt_footer": "",
+            "is_vat_registered": "on",
+        })
+        self.assertRedirects(response, reverse("accounts:restaurant_settings"))

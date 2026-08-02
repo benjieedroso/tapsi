@@ -177,6 +177,13 @@
     color: var(--color-error);
 }
 
+.field-error {
+    display: block;
+    font-size: var(--font-size-xs);
+    color: var(--color-error);
+    margin-top: var(--space-1);
+}
+
 /* ── Buttons ── */
 button, .button {
     font-family: var(--font-family);
@@ -461,6 +468,7 @@ button:active, .button:active {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: var(--space-4);
+    align-items: start;
 }
 
 .checkbox-label {
