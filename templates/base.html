@@ -12,17 +12,17 @@
     <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body>
-    <header class="navbar">
-        <div class="navbar-inner">
-            <a class="navbar-logo" href="{% url 'dashboard' %}">
-                <div class="navbar-logo-icon">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-                </div>
-                <span class="navbar-logo-text">TAPSI</span>
-            </a>
-            {% if user.is_authenticated %}
-            <ul class="navbar-links">
-                <li><span class="nav-restaurant-name">{{ user.restaurant.name }}</span></li>
+    {% if user.is_authenticated %}
+    <aside class="sidebar">
+        <a class="navbar-logo" href="{% url 'dashboard' %}">
+            <div class="navbar-logo-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            </div>
+            <span class="navbar-logo-text">TAPSI</span>
+        </a>
+        <div class="sidebar-restaurant"><span class="nav-restaurant-name">{{ user.restaurant.name }}</span></div>
+        <nav class="sidebar-nav">
+            <ul class="sidebar-links">
                 <li><a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">Dashboard</a></li>
                 <li><a href="{% url 'accounts:profile' %}" class="{% if request.resolver_match.url_name == 'profile' %}active{% endif %}">Profile</a></li>
                 {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
@@ -48,22 +48,23 @@
                 <li><a href="{% url 'accounts:restaurant_settings' %}" class="{% if request.resolver_match.url_name == 'restaurant_settings' %}active{% endif %}">Settings</a></li>
                 {% endif %}
                 <li><a href="{% url 'notifications:notification_list' %}" class="{% if 'notifications' in request.resolver_match.app_name %}active{% endif %}">Bell</a></li>
-                <li>
-                    <form method="post" action="{% url 'accounts:logout' %}" style="display:inline">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-ghost btn-sm">Log out</button>
-                    </form>
-                </li>
             </ul>
-            {% endif %}
+        </nav>
+        <div class="sidebar-footer">
+            <form method="post" action="{% url 'accounts:logout' %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-ghost">Log out</button>
+            </form>
         </div>
-    </header>
-
-    <main class="container">
-        {% for message in messages %}
-        <div class="alert alert-{{ message.tags }}">{{ message }}</div>
-        {% endfor %}
-        {% block content %}{% endblock %}
+    </aside>
+    {% endif %}
+    <main class="{% if user.is_authenticated %}app-main{% endif %}">
+        <div class="container">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+            {% block content %}{% endblock %}
+        </div>
     </main>
 </body>
 </html>
