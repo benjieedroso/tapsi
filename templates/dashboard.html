@@ -8,6 +8,18 @@
 </section>
 
 <section class="grid">
+    <article>
+        <h2>Quick Actions</h2>
+        <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3);">
+            <a href="{% url 'orders:order_create' %}" style="margin-top: 0;">New order</a>
+            <a href="{% url 'orders:kitchen_queue' %}" style="margin-top: 0;">Kitchen queue</a>
+            <a href="{% url 'closing:closing_list' %}" style="margin-top: 0;">Daily closing</a>
+            <a href="{% url 'reports:daily_sales' %}" style="margin-top: 0;">Reports</a>
+            <a href="{% url 'menu:menu_create' %}" style="margin-top: 0;">Add menu item</a>
+            <a href="{% url 'accounts:staff_list' %}" style="margin-top: 0;">Manage staff</a>
+        </div>
+    </article>
+
     {% if show_financials %}
     <article>
         <h2>Today's Sales</h2>
@@ -139,18 +151,6 @@
                 <span class="trend-day">{{ d.date|date:'j' }}</span>
             </div>
             {% endfor %}
-        </div>
-    </article>
-
-    <article>
-        <h2>Quick Actions</h2>
-        <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3);">
-            <a href="{% url 'orders:order_create' %}" style="margin-top: 0;">New order</a>
-            <a href="{% url 'orders:kitchen_queue' %}" style="margin-top: 0;">Kitchen queue</a>
-            <a href="{% url 'closing:closing_list' %}" style="margin-top: 0;">Daily closing</a>
-            <a href="{% url 'reports:daily_sales' %}" style="margin-top: 0;">Reports</a>
-            <a href="{% url 'menu:menu_create' %}" style="margin-top: 0;">Add menu item</a>
-            <a href="{% url 'accounts:staff_list' %}" style="margin-top: 0;">Manage staff</a>
         </div>
     </article>
     {% endif %}
