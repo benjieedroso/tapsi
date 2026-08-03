@@ -389,23 +389,25 @@ button:active, .button:active {
     display: flex;
     align-items: flex-end;
     gap: 4px;
-    height: 96px;
+    height: 112px;
     margin: var(--space-4) 0 var(--space-2);
+    overflow-x: auto;
+    padding-bottom: var(--space-4);
 }
 
 .trend-col {
-    flex: 1;
+    flex: 0 0 auto;
+    width: 20px;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: flex-end;
-    height: 100%;
-    min-width: 0;
+    height: 80px;
 }
 
 .trend-bar {
     width: 100%;
-    max-width: 18px;
+    min-height: 2px;
     background: linear-gradient(180deg, var(--tapsi-400), var(--tapsi-600));
     border-radius: var(--radius-sm) var(--radius-sm) 0 0;
     transition: height var(--transition-fast);
@@ -416,9 +418,10 @@ button:active, .button:active {
 }
 
 .trend-day {
-    font-size: var(--font-size-xs);
+    font-size: 9px;
     color: var(--gray-400);
     margin-top: var(--space-1);
+    white-space: nowrap;
 }
 
 /* ── Page Headings ── */
