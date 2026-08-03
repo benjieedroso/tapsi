@@ -130,6 +130,8 @@
         .price-card h3 { font-size: 18px; font-weight: 700; color: var(--gray-800); margin-bottom: 8px; }
         .price { font-size: 44px; font-weight: 800; color: var(--gray-900); letter-spacing: -1px; }
         .price span { font-size: 16px; font-weight: 500; color: var(--gray-400); }
+        .price-wrap { position: relative; display: inline-block; }
+        .price-old { display: block; font-size: 16px; color: var(--gray-400); text-decoration: line-through; font-weight: 500; opacity: 0.6; filter: blur(0.3px); }
         .price-desc { font-size: 13px; color: var(--gray-400); margin: 4px 0 24px; }
         .price-features { list-style: none; text-align: left; margin-bottom: 28px; }
         .price-features li { padding: 8px 0; font-size: 14px; color: var(--gray-600); display: flex; align-items: center; gap: 10px; }
@@ -189,7 +191,7 @@
 
 <!-- Banner -->
 <div class="top-banner">
-    <span>🔥</span> Libre for 30 days — No credit card required! Use code: <strong>TAPSI2026</strong>
+    <span>🔥</span> 100% Free — No credit card required!
 </div>
 
 <!-- Navbar -->
@@ -210,7 +212,7 @@
             <li><a href="#pricing">Pricing</a></li>
             <li><a href="#testimonials">Reviews</a></li>
         </ul>
-        <a href="https://tapsidaily.online/accounts/register/" class="btn btn-primary">Start Free Trial</a>
+        <a href="https://tapsidaily.online/accounts/register/" class="btn btn-primary">Get Started Free</a>
     </div>
 </nav>
 
@@ -259,7 +261,7 @@
         </div>
         <div class="trust-item">
             <div class="trust-icon">💰</div>
-            <h4>Free for 30 Days</h4>
+            <h4>Free for Everyone</h4>
             <p>No credit card needed</p>
         </div>
         <div class="trust-item">
@@ -365,12 +367,14 @@
     <div class="section-header">
         <div class="section-tag">Pricing</div>
         <h2>Choose Your Plan</h2>
-        <p>Flexible pricing that grows with your business. All plans include a 30-day free trial.</p>
+        <p>Flexible pricing that grows with your business. All plans are currently free.</p>
     </div>
     <div class="pricing-grid">
         <div class="price-card">
             <h3>Tapsihan</h3>
-            <div class="price">₱0<span>/mo</span></div>
+            <div class="price-wrap">
+                <div class="price">₱0<span>/mo</span></div>
+            </div>
             <div class="price-desc">For sari-sari stores & carinderias</div>
             <ul class="price-features">
                 <li>1 user (Owner)</li>
@@ -384,7 +388,10 @@
         <div class="price-card popular">
             <div class="popular-badge">Most Popular</div>
             <h3>Karinderya</h3>
-            <div class="price">₱999<span>/mo</span></div>
+            <div class="price-wrap">
+                <span class="price-old">₱999</span>
+                <div class="price">₱0<span>/mo</span></div>
+            </div>
             <div class="price-desc">For growing food businesses</div>
             <ul class="price-features">
                 <li>Up to 5 staff accounts</li>
@@ -395,11 +402,14 @@
                 <li>P&L reports with export</li>
                 <li>Priority support</li>
             </ul>
-            <a href="https://tapsidaily.online/accounts/register/" class="btn btn-primary">Start Free Trial</a>
+            <a href="https://tapsidaily.online/accounts/register/" class="btn btn-primary">Get Started Free</a>
         </div>
         <div class="price-card">
             <h3>Restaurant</h3>
-            <div class="price">₱2,499<span>/mo</span></div>
+            <div class="price-wrap">
+                <span class="price-old">₱2,499</span>
+                <div class="price">₱0<span>/mo</span></div>
+            </div>
             <div class="price-desc">For multi-branch operations</div>
             <ul class="price-features">
                 <li>Unlimited staff accounts</li>
@@ -408,7 +418,7 @@
                 <li>Advanced analytics</li>
                 <li>Phone + chat support</li>
             </ul>
-            <a href="mailto:sales.tapsidaily@gmail.com" class="btn btn-outline">Contact Sales</a>
+            <a href="https://tapsidaily.online/accounts/register/" class="btn btn-outline">Get Started Free</a>
         </div>
     </div>
 </section>
@@ -460,9 +470,9 @@
 <!-- CTA -->
 <section class="cta" id="cta">
     <h2>Ready to Simplify Your Restaurant?</h2>
-    <p>Join 2,500+ Filipino food businesses already using TAPSI. Start your free trial today — no credit card required.</p>
+    <p>Join 2,500+ Filipino food businesses already using TAPSI. Sign up today — it's completely free.</p>
     <div class="cta-actions">
-        <a href="https://tapsidaily.online/accounts/register/" class="btn btn-white">Start Free for 30 Days</a>
+        <a href="https://tapsidaily.online/accounts/register/" class="btn btn-white">Get Started Free</a>
     </div>
 </section>
 
