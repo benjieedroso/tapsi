@@ -1,0 +1,115 @@
+{% extends 'base.html' %}
+{% block title %}Inventory · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Inventory</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Track ingredient stock with a complete transaction ledger.</p>
+    </div>
+    <div style="display: flex; gap: var(--space-3);">
+        <a class="btn btn-secondary" href="{% url 'inventory:transaction_create' %}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Stock movement
+        </a>
+        <a class="btn btn-primary" href="{% url 'inventory:ingredient_create' %}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Add ingredient
+        </a>
+    </div>
+</div>
+
+{% if open_alerts %}
+<div class="alert alert-warning">
+    <strong>Low stock:</strong>
+    {% for alert in open_alerts %}
+    {{ alert.ingredient.name }} ({{ alert.ingredient.current_stock }} {{ alert.ingredient.unit_of_measure }}){% if not forloop.last %}, {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+
+<div style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); flex-wrap: wrap;">
+    <form method="get" style="display: flex; gap: var(--space-2); flex: 1; max-width: 400px;">
+        <input type="text" name="q" value="{{ q }}" placeholder="Search by name..." class="input" style="flex: 1;">
+        <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+    </form>
+    <form method="get" style="display: flex; gap: var(--space-2); align-items: center;">
+        <label class="checkbox-label" style="white-space: nowrap;">
+            <input type="checkbox" name="low_stock" value="1" {% if low_stock_filter %}checked{% endif %} onchange="this.form.submit()">
+            <span>Low stock only</span>
+        </label>
+    </form>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Unit</th>
+                <th>Current Stock</th>
+                <th>Minimum</th>
+                <th>Avg Cost</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ingredient in ingredients %}
+            {% if not low_stock_filter or ingredient.stock|default:0 <= ingredient.minimum_stock %}
+            <tr>
+                <td>{{ ingredient.name }}</td>
+                <td>{{ ingredient.unit_of_measure }}</td>
+                <td>
+                    {{ ingredient.stock|default:0|floatformat:2 }}
+                    {% if ingredient.stock|default:0 <= ingredient.minimum_stock %}
+                    <span class="badge badge-warning">Low</span>
+                    {% endif %}
+                </td>
+                <td>{{ ingredient.minimum_stock|floatformat:2 }}</td>
+                <td>₱{{ ingredient.average_unit_cost|floatformat:2 }}</td>
+                <td style="text-align: right;">
+                    <a href="{% url 'inventory:stock_card' ingredient.pk %}" class="btn btn-ghost btn-sm">Stock card</a>
+                    <a href="{% url 'inventory:ingredient_edit' ingredient.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                    <button class="btn btn-ghost btn-sm delete-btn" data-name="{{ ingredient.name }}" data-url="{% url 'inventory:ingredient_delete' ingredient.pk %}" style="color: var(--color-error);">Delete</button>
+                </td>
+            </tr>
+            {% endif %}
+            {% empty %}
+            <tr>
+                <td colspan="6" class="empty-state">
+                    <h3>No ingredients yet</h3>
+                    <p>Add your first ingredient to start tracking stock.</p>
+                    <a href="{% url 'inventory:ingredient_create' %}" class="btn btn-primary">Add ingredient</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="modal-overlay" id="deleteModal" style="display: none;">
+    <div class="modal">
+        <h3>Delete Ingredient</h3>
+        <p>Are you sure you want to delete <strong id="deleteName"></strong>? Its transaction history is kept for the audit trail.</p>
+        <div style="display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-6);">
+            <button class="btn btn-secondary" onclick="document.getElementById('deleteModal').style.display='none'">Cancel</button>
+            <form method="post" id="deleteForm" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary" style="background: var(--color-error);">Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.getElementById('deleteName').textContent = this.dataset.name;
+        document.getElementById('deleteForm').action = this.dataset.url;
+        document.getElementById('deleteModal').style.display = 'flex';
+    });
+});
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+});
+</script>
+{% endblock %}

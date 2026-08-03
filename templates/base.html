@@ -29,6 +29,7 @@
                 <li><a href="{% url 'accounts:staff_list' %}" class="{% if request.resolver_match.url_name == 'staff_list' or request.resolver_match.url_name == 'create_staff' %}active{% endif %}">Staff</a></li>
                 <li><a href="{% url 'menu:menu_list' %}" class="{% if 'menu' in request.resolver_match.app_name %}active{% endif %}">Menu</a></li>
                 {% endif %}
+                <li><a href="{% url 'inventory:ingredient_list' %}" class="{% if 'inventory' in request.resolver_match.app_name %}active{% endif %}">Inventory</a></li>
                 {% if user.role == 'OWNER' %}
                 <li><a href="{% url 'accounts:restaurant_settings' %}" class="{% if request.resolver_match.url_name == 'restaurant_settings' %}active{% endif %}">Settings</a></li>
                 {% endif %}

@@ -10,6 +10,7 @@ urlpatterns = [
     path("", views.dashboard, name="dashboard"),
     path("accounts/", include("accounts.urls")),
     path("menu/", include("menu.urls")),
+    path("inventory/", include("inventory.urls")),
 ]
 
 if settings.DEBUG:

@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Ingredient · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>{{ action }} Ingredient</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Master data for a tracked ingredient.</p>
+    </div>
+</div>
+
+<div class="form-card" style="max-width: 560px;">
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <ul class="errorlist"><li>{{ form.non_field_errors.0 }}</li></ul>
+        {% endif %}
+        {% for field in form %}
+        <div class="field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+            {% if field.help_text %}<small style="color: var(--gray-400);">{{ field.help_text }}</small>{% endif %}
+        </div>
+        {% endfor %}
+        <div style="display: flex; gap: var(--space-3); margin-top: var(--space-6);">
+            <button type="submit" class="btn btn-primary">{{ action }} Ingredient</button>
+            <a href="{% url 'inventory:ingredient_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

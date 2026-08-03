@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Stock Movement · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Stock Movement</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Record a purchase, consumption, adjustment, spoilage, or return. The ledger is immutable — correct mistakes with a compensating entry.</p>
+    </div>
+</div>
+
+<div class="form-card" style="max-width: 560px;">
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <ul class="errorlist"><li>{{ form.non_field_errors.0 }}</li></ul>
+        {% endif %}
+        {% for field in form %}
+        {% if field.name == 'direction' %}
+        <div class="field" id="direction-field" style="display: none;">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+        </div>
+        {% elif field.name == 'unit_cost' %}
+        <div class="field" id="unit-cost-field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+            <small style="color: var(--gray-400);">Required for purchases.</small>
+        </div>
+        {% elif field.name == 'reason' %}
+        <div class="field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+            <small style="color: var(--gray-400);">Required for adjustments, spoilage, and returns.</small>
+        </div>
+        {% else %}
+        <div class="field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+        <div style="display: flex; gap: var(--space-3); margin-top: var(--space-6);">
+            <button type="submit" class="btn btn-primary">Record movement</button>
+            <a href="{% url 'inventory:ingredient_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+
+<script>
+const typeSelect = document.getElementById('id_transaction_type');
+const directionField = document.getElementById('direction-field');
+const unitCostField = document.getElementById('unit-cost-field');
+function updateFields() {
+    const value = typeSelect.value;
+    directionField.style.display = value === 'ADJUSTMENT' ? 'block' : 'none';
+    unitCostField.style.display = value === 'PURCHASE' ? 'block' : 'none';
+}
+typeSelect.addEventListener('change', updateFields);
+updateFields();
+</script>
+{% endblock %}

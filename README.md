@@ -28,7 +28,7 @@ Open `http://127.0.0.1:8000/` and register the first restaurant owner.
 | **Module 2** | Restaurant & User Management | ✅ Complete |
 | **Module 3** | Dashboard | ✅ Complete |
 | **Module 4** | Menu Management | ✅ Complete |
-| Module 5 | Inventory Management | 🔲 Pending |
+| **Module 5** | Inventory Management | ✅ Complete |
 | Module 6 | Supplier Management | 🔲 Pending |
 | Module 7 | Purchase Orders | 🔲 Pending |
 | Module 8 | Recipe Management | 🔲 Pending |
@@ -99,6 +99,41 @@ All functional requirements (FR-030 to FR-037) implemented:
 - Role-based access: Owner and Manager can manage; Cashier cannot
 - Tenant isolation via `restaurant_id` on all queries
 - 54 tests covering category CRUD, menu item CRUD, add-ons, price history, access control, and validation
+
+## Module 5: Inventory Management — Complete
+
+All functional requirements (FR-040 to FR-047) implemented:
+
+- **Ingredient CRUD** — name, unit of measure (g, kg, ml, L, pc, pack), minimum stock, average unit cost, default supplier — FR-040
+- **Derived stock** — current stock is computed from the ledger's latest resulting balance; no direct stock edits — FR-041
+- **Transaction types** — PURCHASE, CONSUMPTION, ADJUSTMENT (in/out), SPOILAGE, RETURN; reason mandatory for adjustment/spoilage/return; unit cost mandatory for purchases — FR-042
+- **Immutable ledger** — every transaction records ingredient, type, signed quantity, unit cost, resulting balance, reference, user, timestamp; `delete()` raises; corrections are compensating entries — FR-043
+- **Negative stock rejected** — descriptive error naming the ingredient and shortfall — FR-044
+- **Low-stock alerts** — one open alert per ingredient until restocked above the minimum, then re-armable — FR-045
+- **Stock card** — running balance per ingredient, filterable by type and date range — FR-046
+- **Weighted average cost** — recalculated on every purchase — FR-047
+- Role access per SRS matrix: Owner/Manager full control; Cashier/Kitchen read-only (list + stock card)
+- Tenant isolation via `restaurant_id` on all queries
+- 38 tests covering ingredient CRUD, ledger mechanics, weighted average, low-stock lifecycle, filters, access control, and validation
+
+### Models (`inventory/models.py`)
+
+| Model | Fields |
+|-------|--------|
+| `Ingredient` | restaurant_id, name, unit_of_measure, minimum_stock, average_unit_cost, default_supplier_id, is_deleted, deleted_at |
+| `InventoryTransaction` | restaurant_id, ingredient (FK), transaction_type, quantity (signed), unit_cost, resulting_balance, reference, reason, user (FK→User), created_at |
+| `LowStockAlert` | restaurant_id, ingredient (FK), opened_at, resolved_at |
+
+### Endpoints
+
+| Path | Description |
+|------|-------------|
+| `/inventory/ingredients/` | Ingredient list (search, low-stock filter, open alerts banner) |
+| `/inventory/ingredients/new/` | Create ingredient |
+| `/inventory/ingredients/<id>/edit/` | Edit ingredient |
+| `/inventory/ingredients/<id>/delete/` | Soft delete ingredient |
+| `/inventory/ingredients/<id>/transactions/` | Stock card ledger (filter by type + date range) |
+| `/inventory/transactions/new/` | Record stock movement (purchase/consumption/adjustment/spoilage/return) |
 
 ### Models (`menu/models.py`)
 

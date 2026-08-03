@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Stock Card · {{ ingredient.name }} · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Stock Card — {{ ingredient.name }}</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">
+            Balance: <strong>{{ ingredient.current_stock }} {{ ingredient.unit_of_measure }}</strong>
+            · Min: {{ ingredient.minimum_stock }} · Avg cost: ₱{{ ingredient.average_unit_cost|floatformat:2 }}
+        </p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'inventory:transaction_create' %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Stock movement
+    </a>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: flex-end;">
+    <div class="field" style="margin: 0;">
+        <label for="id_type" style="font-size: var(--font-size-sm);">Type</label>
+        <select name="type" id="id_type" class="input" style="width: auto;">
+            <option value="">All types</option>
+            {% for value, label in types %}
+            <option value="{{ value }}" {% if txn_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="field" style="margin: 0;">
+        <label for="id_from" style="font-size: var(--font-size-sm);">From</label>
+        <input type="date" name="from" id="id_from" value="{{ date_from }}" class="input" style="width: auto;">
+    </div>
+    <div class="field" style="margin: 0;">
+        <label for="id_to" style="font-size: var(--font-size-sm);">To</label>
+        <input type="date" name="to" id="id_to" value="{{ date_to }}" class="input" style="width: auto;">
+    </div>
+    <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+    <a href="{% url 'inventory:stock_card' ingredient.pk %}" class="btn btn-ghost btn-sm">Clear</a>
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th style="text-align: right;">Qty</th>
+                <th style="text-align: right;">Unit Cost</th>
+                <th style="text-align: right;">Balance</th>
+                <th>Reference</th>
+                <th>Reason</th>
+                <th>User</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for txn in transactions %}
+            <tr>
+                <td>{{ txn.created_at|date:"M j, Y H:i" }}</td>
+                <td>{{ txn.get_transaction_type_display }}</td>
+                <td style="text-align: right; {% if txn.quantity < 0 %}color: var(--color-error);{% else %}color: var(--tapsi-700);{% endif %}">
+                    {{ txn.quantity|floatformat:2 }}
+                </td>
+                <td style="text-align: right;">{% if txn.unit_cost is not None %}₱{{ txn.unit_cost|floatformat:2 }}{% else %}—{% endif %}</td>
+                <td style="text-align: right;">{{ txn.resulting_balance|floatformat:2 }}</td>
+                <td>{{ txn.reference|default:"—" }}</td>
+                <td>{{ txn.reason|default:"—" }}</td>
+                <td>{% if txn.user %}{{ txn.user.get_full_name|default:txn.user.email }}{% else %}—{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="empty-state">
+                    <h3>No transactions yet</h3>
+                    <p>Record a stock movement to start this ledger.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
