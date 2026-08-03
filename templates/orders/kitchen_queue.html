@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Kitchen Queue · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Kitchen Queue</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">PENDING and PREPARING orders, oldest first (FR-088).</p>
+    </div>
+</div>
+
+{% if not orders %}
+<div class="table-card empty-state" style="padding: var(--space-6);">
+    <h3>All caught up</h3>
+    <p>No pending or preparing orders right now.</p>
+</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-4);">
+    {% for order in orders %}
+    <div class="table-card" style="padding: var(--space-4); {% if order.status == 'PREPARING' %}border-top: 3px solid var(--tapsi-600);{% else %}border-top: 3px solid var(--gray-300);{% endif %}">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: var(--font-size-lg);">{{ order.order_number }} <span style="color: var(--gray-400); font-size: var(--font-size-sm);">{{ order.get_order_type_display }}{% if order.table %} · {{ order.table.name }}{% endif %}</span></h3>
+            <span class="badge {% if order.status == 'PREPARING' %}badge-warning{% else %}badge-neutral{% endif %}">{{ order.get_status_display }}</span>
+        </div>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Elapsed: {{ order.elapsed_minutes }} min (FR-089)</p>
+        {% for item in order.items.all %}
+        <div style="margin-top: var(--space-3); padding-top: var(--space-2); border-top: 1px solid var(--gray-100);">
+            <strong>{{ item.quantity }}× {{ item.item_name }}</strong>
+            {% for addon in item.addons.all %}
+            <div style="font-size: var(--font-size-sm); color: var(--gray-500); margin-left: var(--space-3);">+ {{ addon.addon_name }}</div>
+            {% endfor %}
+            {% if item.notes %}<div style="font-size: var(--font-size-sm); color: var(--tapsi-700); margin-left: var(--space-3);">Note: {{ item.notes }}</div>{% endif %}
+        </div>
+        {% endfor %}
+        <form method="post" action="{% url 'orders:kitchen_advance' order.pk %}" style="margin-top: var(--space-4);">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                {% if order.status == 'PENDING' %}Start preparing{% else %}Mark ready{% endif %}
+            </button>
+        </form>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

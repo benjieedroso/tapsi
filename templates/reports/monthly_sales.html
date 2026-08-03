@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Monthly Sales Report · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Monthly Sales Report</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">FR-132 — daily totals compared to the previous month.</p>
+    </div>
+    <a href="?year={{ data.month.year }}&month={{ data.month.month }}&export=1" class="btn btn-secondary">Export CSV</a>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-2);">
+    <input type="number" name="year" value="{{ data.month.year }}" class="input" style="width: 90px;">
+    <input type="number" name="month" value="{{ data.month.month }}" min="1" max="12" class="input" style="width: 80px;">
+    <button type="submit" class="btn btn-secondary btn-sm">Show</button>
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Day</th>
+                <th style="text-align: right;">Sales ({{ data.month|date:'Y-m' }})</th>
+                <th style="text-align: right;">Previous month</th>
+                <th style="text-align: right;">Change</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in data.days %}
+            <tr>
+                <td>{{ d.day }}</td>
+                <td style="text-align: right;">₱{{ d.total|floatformat:2 }}</td>
+                <td style="text-align: right;">₱{{ d.prev|floatformat:2 }}</td>
+                <td style="text-align: right;">
+                    {% if d.change is not None %}
+                    <span style="color: {% if d.change < 0 %}var(--color-error){% else %}var(--color-success){% endif %};">{{ d.change|floatformat:2 }}%</span>
+                    {% else %}—{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top: 2px solid var(--gray-300); font-weight: 700;">
+                <td>Month total</td>
+                <td style="text-align: right;">₱{{ data.month_total|floatformat:2 }}</td>
+                <td style="text-align: right;">₱{{ data.prev_total|floatformat:2 }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endblock %}

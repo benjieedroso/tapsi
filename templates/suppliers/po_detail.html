@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}{{ po.po_number }} · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>{{ po.po_number }}</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">
+            {{ po.supplier.name }} · {{ po.created_at|date:"M j, Y" }}
+            · <span class="badge {% if po.status == 'RECEIVED' %}badge-success{% elif po.status == 'CANCELLED' %}badge-warning{% else %}badge-neutral{% endif %}">{{ po.get_status_display }}</span>
+            {% if po.is_read_only %}<span class="badge badge-neutral">Read-only</span>{% endif %}
+        </p>
+    </div>
+    <div style="display: flex; gap: var(--space-3);">
+        {% if po.status == 'DRAFT' %}
+        <form method="post" action="{% url 'suppliers:po_place' po.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">Place order</button>
+        </form>
+        {% endif %}
+        {% if po.status == 'DRAFT' or po.status == 'ORDERED' %}
+        <form method="post" action="{% url 'suppliers:po_cancel' po.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary">Cancel PO</button>
+        </form>
+        {% endif %}
+        {% if po.status == 'ORDERED' or po.status == 'PARTIALLY_RECEIVED' %}
+        <a class="btn btn-primary" href="{% url 'suppliers:po_receive' po.pk %}">Receive stock</a>
+        {% endif %}
+    </div>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Ingredient</th>
+                <th style="text-align: right;">Ordered</th>
+                <th style="text-align: right;">Received</th>
+                <th style="text-align: right;">Outstanding</th>
+                <th style="text-align: right;">Unit Cost</th>
+                <th style="text-align: right;">Line Total</th>
+                <th style="text-align: right;">Variance</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in po.items.all %}
+            <tr>
+                <td>{{ item.ingredient.name }}</td>
+                <td style="text-align: right;">{{ item.qty_ordered }}</td>
+                <td style="text-align: right;">{{ item.qty_received }}</td>
+                <td style="text-align: right;">{{ item.outstanding_qty }}</td>
+                <td style="text-align: right;">₱{{ item.unit_cost|floatformat:2 }}</td>
+                <td style="text-align: right;">₱{{ item.line_total|floatformat:2 }}</td>
+                <td style="text-align: right;">{{ item.qty_ordered|floatformat:2 }}</td>            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="empty-state"><h3>No line items</h3></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% if po.notes %}
+<p style="color: var(--gray-600); margin-top: var(--space-3);"><strong>Notes:</strong> {{ po.notes }}</p>
+{% endif %}
+{% endblock %}

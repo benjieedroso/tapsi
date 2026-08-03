@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Audit Logs · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Audit Logs</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Append-only trail (FR-160..162). {% if user.role == 'MANAGER' %}Read-only for Managers.{% endif %}</p>
+    </div>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; flex-wrap: wrap; gap: var(--space-2);">
+    <select name="action" class="input" style="width: auto;">
+        <option value="">All actions</option>
+        {% for a in actions %}<option value="{{ a }}" {% if a == action %}selected{% endif %}>{{ a }}</option>{% endfor %}
+    </select>
+    <select name="entity" class="input" style="width: auto;">
+        <option value="">All entities</option>
+        {% for e in entities %}<option value="{{ e }}" {% if e == entity %}selected{% endif %}>{{ e }}</option>{% endfor %}
+    </select>
+    <select name="actor" class="input" style="width: auto;">
+        <option value="">All users</option>
+        {% for s in staff %}<option value="{{ s.pk }}" {% if s.pk|stringformat:"s" == actor_id %}selected{% endif %}>{{ s.email }}</option>{% endfor %}
+    </select>
+    <input type="date" name="date_from" value="{{ date_from }}" class="input" style="width: auto;">
+    <input type="date" name="date_to" value="{{ date_to }}" class="input" style="width: auto;">
+    <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Time (UTC)</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Entity</th>
+                <th>Details</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in logs %}
+            <tr>
+                <td style="white-space: nowrap;">{{ entry.created_at|date:"Y-m-d H:i" }}</td>
+                <td>{{ entry.actor.email|default:"system" }} <span class="badge badge-secondary">{{ entry.actor_role }}</span></td>
+                <td><span class="badge badge-secondary">{{ entry.action }}</span></td>
+                <td>{{ entry.entity }}{% if entry.entity_id %}#{{ entry.entity_id }}{% endif %}</td>
+                <td style="max-width: 320px; font-size: var(--font-size-sm); color: var(--gray-500); word-break: break-word;">
+                    {% if entry.before %}before: {{ entry.before|truncatechars:80 }}<br>{% endif %}
+                    {% if entry.after %}after: {{ entry.after|truncatechars:120 }}{% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5" class="empty-state">
+                    <h3>No audit entries</h3>
+                    <p>Entries are written automatically for logins, status changes, payments, and more.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if logs.has_other_pages %}
+<div style="display: flex; justify-content: space-between; margin-top: var(--space-4);">
+    {% if logs.has_previous %}<a class="btn btn-secondary btn-sm" href="?page={{ logs.previous_page_number }}&action={{ action }}&entity={{ entity }}&actor={{ actor_id }}&date_from={{ date_from }}&date_to={{ date_to }}">Previous</a>{% endif %}
+    <span style="color: var(--gray-500);">Page {{ logs.number }} of {{ logs.paginator.num_pages }}</span>
+    {% if logs.has_next %}<a class="btn btn-secondary btn-sm" href="?page={{ logs.next_page_number }}&action={{ action }}&entity={{ entity }}&actor={{ actor_id }}&date_from={{ date_from }}&date_to={{ date_to }}">Next</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

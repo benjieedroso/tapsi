@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Daily Closings · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Daily Closings</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Closing locks the business day (BR-008) — no orders, payments, or expenses after closing (FR-142).</p>
+    </div>
+    <a href="{% url 'closing:closing_prepare' %}" class="btn btn-primary">Close today</a>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Business Date</th>
+                <th>Status</th>
+                <th style="text-align: right;">Expected Cash</th>
+                <th style="text-align: right;">Counted Cash</th>
+                <th style="text-align: right;">Variance</th>
+                <th>Note</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for closing in closings %}
+            <tr>
+                <td>{{ closing.business_date|date:"M j, Y" }}</td>
+                <td>
+                    {% if closing.status == 'CLOSED' %}
+                    <span class="badge badge-success">Closed</span>
+                    {% else %}
+                    <span class="badge badge-warning">Reopened</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: right;">₱{{ closing.expected_cash|floatformat:2 }}</td>
+                <td style="text-align: right;">₱{{ closing.counted_cash|floatformat:2 }}</td>
+                <td style="text-align: right; color: {% if closing.variance %}var(--color-error){% endif %};">₱{{ closing.variance|floatformat:2 }}</td>
+                <td>{{ closing.variance_note|default:"—" }}</td>
+                <td style="text-align: right;">
+                    <a href="{% url 'closing:eod_report' closing.pk %}" class="btn btn-ghost btn-sm">Report</a>
+                    {% if closing.status == 'CLOSED' and user.role == 'OWNER' %}
+                    <form method="post" action="{% url 'closing:closing_reopen' closing.pk %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="reason" value="">
+                        <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--color-error);" onclick="var r = prompt('Reopen reason (required):'); if (r === null || !r.trim()) { return false; } this.form.elements['reason'].value = r.trim(); return true;">Reopen</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="empty-state">
+                    <h3>No closings yet</h3>
+                    <p>Close the day to generate your End-of-Day report.</p>
+                    <a href="{% url 'closing:closing_prepare' %}" class="btn btn-primary">Close today</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

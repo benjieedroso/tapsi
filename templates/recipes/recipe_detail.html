@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% block title %}{{ recipe.name }} · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>{{ recipe.name }}</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">
+            {% if recipe.menu_item %}Menu item: {{ recipe.menu_item.name }}{% else %}Add-on: {{ recipe.addon.name }}{% endif %}
+        </p>
+    </div>
+    <div style="display: flex; gap: var(--space-3);">
+        <a class="btn btn-secondary" href="{% url 'recipes:recipe_edit' recipe.pk %}">Edit</a>
+        <form method="post" action="{% url 'recipes:recipe_delete' recipe.pk %}" onsubmit="return confirm('Delete recipe \'{{ recipe.name }}\'?');">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-secondary" style="color: var(--color-error);">Delete</button>
+        </form>
+    </div>
+</div>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-bottom: var(--space-4);">
+    <div class="table-card" style="padding: var(--space-4);">
+        <h3 style="margin-bottom: var(--space-3);">Recipe Cost (FR-071)</h3>
+        <p style="font-size: var(--font-size-2xl); font-weight: 700; color: var(--tapsi-700);">₱{{ recipe.cost|floatformat:2 }}</p>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm);">From weighted average ingredient costs.</p>
+    </div>
+    <div class="table-card" style="padding: var(--space-4);">
+        <h3 style="margin-bottom: var(--space-3);">Gross Margin</h3>
+        <p style="font-size: var(--font-size-2xl); font-weight: 700; color: var(--tapsi-700);">
+            {% if recipe.margin is None %}—{% else %}{{ recipe.margin|floatformat:1 }}%{% endif %}
+        </p>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm);">
+            {% if recipe.menu_item %}Selling price ₱{{ recipe.menu_item.price|floatformat:2 }}{% else %}Selling price ₱{{ recipe.addon.price|floatformat:2 }}{% endif %}
+        </p>
+    </div>
+</div>
+
+<h2 style="margin-bottom: var(--space-3);">Ingredient Lines</h2>
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Ingredient</th>
+                <th style="text-align: right;">Quantity</th>
+                <th style="text-align: right;">Unit Cost</th>
+                <th style="text-align: right;">Line Cost</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for line in recipe.lines.all %}
+            <tr>
+                <td>{{ line.ingredient.name }}</td>
+                <td style="text-align: right;">{{ line.quantity }} {{ line.ingredient.unit_of_measure }}</td>
+                <td style="text-align: right;">₱{{ line.ingredient.average_unit_cost|floatformat:2 }}</td>
+                <td style="text-align: right;">₱{{ line.line_cost|floatformat:2 }}</td>
+                <td style="text-align: right;">
+                    <form method="post" action="{% url 'recipes:recipe_line_remove' recipe.pk line.pk %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--color-error);">Remove</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="empty-state"><h3>No ingredient lines</h3></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<h3 style="margin: var(--space-5) 0 var(--space-3);">Add Ingredient Line</h3>
+<div class="form-card" style="max-width: 560px;">
+    <form method="post" action="{% url 'recipes:recipe_line_add' recipe.pk %}" novalidate>
+        {% csrf_token %}
+        {% for field in line_form %}
+        <div class="field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+        </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary btn-sm">Add line</button>
+    </form>
+</div>
+{% endblock %}

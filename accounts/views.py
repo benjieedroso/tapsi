@@ -251,19 +251,151 @@ def dashboard(request):
     # FR-026: Role-based widget visibility — Cashier sees only order status + low stock
     show_financials = role in {User.Role.OWNER, User.Role.MANAGER}
 
-    # FR-020..FR-024: Placeholder context — real data will come from future modules
-    from menu.models import MenuItem, Category
+    # FR-020..FR-024: Widgets computed from live module data.
+    from decimal import Decimal
+
+    from django.db.models import Count
+    from django.utils import timezone
+
+    from menu.models import AddOn, Category, MenuItem
     rid = restaurant.pk if restaurant else 0
     menu_count = MenuItem.objects.filter(
         restaurant_id=rid, is_deleted=False, is_available=True,
     ).count()
     category_count = Category.objects.filter(restaurant_id=rid).count()
+    addon_count = AddOn.objects.filter(restaurant_id=rid).count()
 
     context = {
         "show_financials": show_financials,
         "menu_count": menu_count,
         "category_count": category_count,
+        "addon_count": addon_count,
     }
+    if not show_financials:
+        return render(request, "dashboard.html", context)
+
+    from closing.models import DailyClosing
+    from expenses.models import Expense
+    from inventory.models import Ingredient
+    from orders.models import Order, OrderItem, round_money
+    from recipes.models import Recipe
+
+    today = timezone.localdate()
+
+    # FR-020: today's gross sales, net sales, order count, average order value
+    completed_today = Order.objects.filter(
+        restaurant_id=rid, status=Order.Status.COMPLETED, created_at__date=today,
+    )
+    order_count = completed_today.count()
+    gross_sales = sum((o.subtotal for o in completed_today), Decimal("0"))
+    net_sales = sum((o.total for o in completed_today), Decimal("0"))
+    avg_order_value = (
+        round_money(net_sales / order_count) if order_count else Decimal("0")
+    )
+
+    # FR-021: today's order counts by status
+    status_counts = {status: 0 for status, _ in Order.Status.choices}
+    for row in (
+        Order.objects.filter(restaurant_id=rid, created_at__date=today)
+        .values("status")
+        .annotate(n=Count("id"))
+    ):
+        status_counts[row["status"]] = row["n"]
+
+    # FR-022: top 5 selling items today and this month (by revenue, then qty)
+    month_start = today.replace(day=1)
+
+    def _top_sellers(orders):
+        items = (
+            OrderItem.objects.filter(order__in=orders)
+            .select_related("menu_item")
+            .prefetch_related("addons")
+        )
+        stats = {}
+        for item in items:
+            entry = stats.get(item.menu_item_id) or stats.setdefault(
+                item.menu_item_id,
+                {"name": item.item_name, "qty": Decimal("0"), "revenue": Decimal("0")},
+            )
+            addons = sum(
+                (a.price for a in item.addons.all()), Decimal("0")
+            )
+            entry["qty"] += item.quantity
+            entry["revenue"] += item.unit_price * item.quantity + addons
+        return sorted(
+            stats.values(), key=lambda s: (-s["revenue"], -s["qty"]),
+        )[:5]
+
+    top_today = _top_sellers(completed_today)
+    top_month = _top_sellers(
+        Order.objects.filter(
+            restaurant_id=rid,
+            status=Order.Status.COMPLETED,
+            created_at__date__gte=month_start,
+            created_at__date__lte=today,
+        )
+    )
+
+    # FR-023: ingredients at or below minimum stock
+    low_stock = [
+        ing for ing in Ingredient.objects.filter(restaurant_id=rid, is_deleted=False)
+        if ing.is_low_stock
+    ]
+
+    # FR-024: current-month revenue vs expenses vs profit + 30-day trend
+    month_orders = Order.objects.filter(
+        restaurant_id=rid,
+        status=Order.Status.COMPLETED,
+        created_at__date__gte=month_start,
+        created_at__date__lte=today,
+    )
+    month_revenue = sum((o.total for o in month_orders), Decimal("0"))
+    month_expenses = sum(
+        Expense.objects.filter(
+            restaurant_id=rid,
+            expense_date__gte=month_start,
+            expense_date__lte=today,
+        ).values_list("amount", flat=True),
+        Decimal("0"),
+    )
+    month_profit = month_revenue - month_expenses
+
+    trend_start = today - timezone.timedelta(days=29)
+    trend_orders = Order.objects.filter(
+        restaurant_id=rid,
+        status=Order.Status.COMPLETED,
+        created_at__date__gte=trend_start,
+        created_at__date__lte=today,
+    ).values_list("created_at", "total")
+    daily_revenue = {}
+    for created_at, total in trend_orders:
+        day = created_at.date()
+        daily_revenue[day] = daily_revenue.get(day, Decimal("0")) + total
+    trend = [
+        {"date": day, "revenue": daily_revenue.get(day, Decimal("0"))}
+        for day in (trend_start + timezone.timedelta(days=i) for i in range(30))
+    ]
+    trend_max = max((d["revenue"] for d in trend), default=Decimal("1")) or Decimal("1")
+
+    context.update({
+        "order_count": order_count,
+        "gross_sales": gross_sales,
+        "net_sales": net_sales,
+        "avg_order_value": avg_order_value,
+        "status_counts": status_counts,
+        "top_today": top_today,
+        "top_month": top_month,
+        "low_stock": low_stock,
+        "month_revenue": month_revenue,
+        "month_expenses": month_expenses,
+        "month_profit": month_profit,
+        "trend": trend,
+        "trend_max": trend_max,
+        "recipe_count": Recipe.objects.filter(restaurant_id=rid).count(),
+        "closing_today": DailyClosing.objects.filter(
+            restaurant_id=rid, business_date=today,
+        ).first(),
+    })
     return render(request, "dashboard.html", context)
 
 

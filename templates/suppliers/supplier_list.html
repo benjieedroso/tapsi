@@ -1,0 +1,92 @@
+{% extends 'base.html' %}
+{% block title %}Suppliers · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Suppliers</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Manage vendors and purchase orders.</p>
+    </div>
+    <div style="display: flex; gap: var(--space-3);">
+        <a class="btn btn-secondary" href="{% url 'suppliers:po_list' %}">Purchase Orders</a>
+        <a class="btn btn-primary" href="{% url 'suppliers:supplier_create' %}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Add supplier
+        </a>
+    </div>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-2); max-width: 400px;">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by name..." class="input" style="flex: 1;">
+    <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Contact</th>
+                <th>Phone</th>
+                <th>Terms</th>
+                <th>Status</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for supplier in suppliers %}
+            <tr>
+                <td><a href="{% url 'suppliers:supplier_detail' supplier.pk %}" style="color: var(--tapsi-700); font-weight: 600;">{{ supplier.name }}</a></td>
+                <td>{{ supplier.contact_person|default:"—" }}</td>
+                <td>{{ supplier.phone|default:"—" }}</td>
+                <td>{{ supplier.get_payment_terms_display }}</td>
+                <td>
+                    {% if supplier.is_active %}
+                    <span class="badge badge-success">Active</span>
+                    {% else %}
+                    <span class="badge badge-warning">Inactive</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: right;">
+                    <a href="{% url 'suppliers:supplier_edit' supplier.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                    <button class="btn btn-ghost btn-sm delete-btn" data-name="{{ supplier.name }}" data-url="{% url 'suppliers:supplier_delete' supplier.pk %}" style="color: var(--color-error);">Delete</button>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="empty-state">
+                    <h3>No suppliers yet</h3>
+                    <p>Add your first supplier to start purchasing.</p>
+                    <a href="{% url 'suppliers:supplier_create' %}" class="btn btn-primary">Add supplier</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="modal-overlay" id="deleteModal" style="display: none;">
+    <div class="modal">
+        <h3>Delete Supplier</h3>
+        <p>Delete <strong id="deleteName"></strong>? Suppliers with purchase history are deactivated instead.</p>
+        <div style="display: flex; gap: var(--space-3); justify-content: flex-end; margin-top: var(--space-6);">
+            <button class="btn btn-secondary" onclick="document.getElementById('deleteModal').style.display='none'">Cancel</button>
+            <form method="post" id="deleteForm" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary" style="background: var(--color-error);">Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+document.querySelectorAll('.delete-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.getElementById('deleteName').textContent = this.dataset.name;
+        document.getElementById('deleteForm').action = this.dataset.url;
+        document.getElementById('deleteModal').style.display = 'flex';
+    });
+});
+document.getElementById('deleteModal').addEventListener('click', function(e) {
+    if (e.target === this) this.style.display = 'none';
+});
+</script>
+{% endblock %}

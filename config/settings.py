@@ -34,6 +34,15 @@ INSTALLED_APPS = [
     "accounts",
     "menu",
     "inventory",
+    "suppliers",
+    "recipes",
+    "orders",
+    "expenses",
+    "employees",
+    "closing",
+    "notifications",
+    "audit_logs",
+    "reports",
 ]
 
 MIDDLEWARE = [

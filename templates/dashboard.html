@@ -11,14 +11,26 @@
     {% if show_financials %}
     <article>
         <h2>Today's Sales</h2>
-        <p class="metric">₱0.00</p>
-        <p>Sales data will appear here once orders are processed.</p>
+        <p class="metric">₱{{ net_sales|floatformat:2 }}</p>
+        <p class="subtle">Gross ₱{{ gross_sales|floatformat:2 }} · {{ order_count }} order{{ order_count|pluralize }} · ₱{{ avg_order_value|floatformat:2 }} AOV</p>
+        <a href="{% url 'reports:daily_sales' %}">View daily report
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
     </article>
 
     <article>
         <h2>Order Status</h2>
-        <p class="metric">0</p>
-        <p>Pending orders will be shown here.</p>
+        <p class="metric">{{ status_counts.PENDING }}</p>
+        <p class="subtle">
+            <span class="badge badge-primary">{{ status_counts.PENDING }} Pending</span>
+            <span class="badge badge-warning">{{ status_counts.PREPARING }} Preparing</span>
+            <span class="badge badge-success">{{ status_counts.READY }} Ready</span>
+            <span class="badge">{{ status_counts.COMPLETED }} Completed</span>
+            <span class="badge badge-error">{{ status_counts.CANCELLED }} Cancelled</span>
+        </p>
+        <a href="{% url 'orders:order_list' %}">View all orders
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
     </article>
     {% endif %}
 
@@ -54,7 +66,7 @@
 
     <article>
         <h2>Add-Ons</h2>
-        <p class="metric">—</p>
+        <p class="metric">{{ addon_count }}</p>
         <p>Extra items like extra rice or extra egg.</p>
         <a href="{% url 'menu:addon_list' %}">Manage add-ons
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
@@ -64,17 +76,80 @@
     {% if show_financials %}
     <article>
         <h2>Low Stock</h2>
-        <p class="metric">—</p>
-        <p>Inventory alerts will appear here once ingredients are configured.</p>
+        {% if low_stock %}
+        <p class="metric">{{ low_stock|length }}</p>
+        <ul class="dash-list">
+            {% for ing in low_stock %}
+            <li>{{ ing.name }} — {{ ing.current_stock|floatformat:2 }} {{ ing.unit_of_measure }}</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="metric">0</p>
+        <p>All ingredients are above their minimum stock.</p>
+        {% endif %}
+        <a href="{% url 'inventory:ingredient_list' %}">Manage inventory
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
     </article>
-    {% endif %}
 
-    {% if show_financials %}
+    <article>
+        <h2>Top Sellers · Today</h2>
+        {% if top_today %}
+        <ul class="dash-list">
+            {% for s in top_today %}
+            <li>{{ s.name }} <span class="badge badge-popular">{{ s.qty|floatformat:0 }} · ₱{{ s.revenue|floatformat:2 }}</span></li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No completed orders yet today.</p>
+        {% endif %}
+        <a href="{% url 'reports:product_mix' %}">Product mix report
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+    </article>
+
+    <article>
+        <h2>Top Sellers · This Month</h2>
+        {% if top_month %}
+        <ul class="dash-list">
+            {% for s in top_month %}
+            <li>{{ s.name }} <span class="badge badge-popular">{{ s.qty|floatformat:0 }} · ₱{{ s.revenue|floatformat:2 }}</span></li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No completed orders this month.</p>
+        {% endif %}
+    </article>
+
+    <article>
+        <h2>This Month</h2>
+        <p class="metric">₱{{ month_profit|floatformat:2 }}</p>
+        <p class="subtle">Revenue ₱{{ month_revenue|floatformat:2 }} − Expenses ₱{{ month_expenses|floatformat:2 }}</p>
+        <a href="{% url 'reports:profit_loss' %}">Profit &amp; loss report
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </a>
+    </article>
+
+    <article>
+        <h2>Revenue · Last 30 Days</h2>
+        <div class="trend">
+            {% for d in trend %}
+            <div class="trend-col" title="{{ d.date|date:'M j' }}: ₱{{ d.revenue|floatformat:2 }}">
+                <div class="trend-bar" style="height: {% widthratio d.revenue trend_max 72 %}px;"></div>
+                <span class="trend-day">{{ d.date|date:'j' }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </article>
+
     <article>
         <h2>Quick Actions</h2>
         <div style="display: flex; flex-direction: column; gap: var(--space-2); margin-top: var(--space-3);">
+            <a href="{% url 'orders:order_create' %}" style="margin-top: 0;">New order</a>
+            <a href="{% url 'orders:kitchen_queue' %}" style="margin-top: 0;">Kitchen queue</a>
+            <a href="{% url 'closing:closing_list' %}" style="margin-top: 0;">Daily closing</a>
+            <a href="{% url 'reports:daily_sales' %}" style="margin-top: 0;">Reports</a>
             <a href="{% url 'menu:menu_create' %}" style="margin-top: 0;">Add menu item</a>
-            <a href="{% url 'menu:category_create' %}" style="margin-top: 0;">Add category</a>
             <a href="{% url 'accounts:staff_list' %}" style="margin-top: 0;">Manage staff</a>
         </div>
     </article>

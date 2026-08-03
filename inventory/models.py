@@ -133,6 +133,7 @@ class InventoryTransaction(models.Model):
     def save(self, *args, **kwargs):
         from decimal import Decimal
 
+        self.quantity = Decimal(self.quantity)
         self.quantity = self._normalized_quantity()
         self.restaurant_id = self.ingredient.restaurant_id
 

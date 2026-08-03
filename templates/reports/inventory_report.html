@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Inventory Report · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Inventory Report</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">FR-134 — current stock levels, usage, and spoilage cost.</p>
+    </div>
+    <a href="?start={{ data.start|date:'Y-m-d' }}&end={{ data.end|date:'Y-m-d' }}&export=1" class="btn btn-secondary">Export CSV</a>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-2);">
+    <input type="date" name="start" value="{{ data.start|date:'Y-m-d' }}" class="input" style="width: auto;">
+    <input type="date" name="end" value="{{ data.end|date:'Y-m-d' }}" class="input" style="width: auto;">
+    <button type="submit" class="btn btn-secondary btn-sm">Show</button>
+</form>
+
+<h2 class="page-heading" style="font-size: var(--font-size-lg);">Current stock levels</h2>
+<div class="table-card">
+    <table>
+        <thead><tr><th>Ingredient</th><th>Unit</th><th style="text-align: right;">Stock</th><th style="text-align: right;">Min</th><th style="text-align: right;">Avg cost</th><th></th></tr></thead>
+        <tbody>
+            {% for ingredient in data.ingredients %}
+            <tr>
+                <td>{{ ingredient.name }}</td>
+                <td>{{ ingredient.unit_of_measure }}</td>
+                <td style="text-align: right;">{{ ingredient.current_stock }}</td>
+                <td style="text-align: right;">{{ ingredient.minimum_stock }}</td>
+                <td style="text-align: right;">₱{{ ingredient.average_unit_cost|floatformat:2 }}</td>
+                <td>{% if ingredient.current_stock < ingredient.minimum_stock %}<span class="badge badge-warning">Low stock</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="empty-state"><h3>No ingredients</h3></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<h2 style="font-size: var(--font-size-lg); margin-top: var(--space-6);">Usage by ingredient ({{ data.start|date:'Y-m-d' }} → {{ data.end|date:'Y-m-d' }})</h2>
+<div class="table-card">
+    <table>
+        <thead><tr><th>Ingredient</th><th style="text-align: right;">Quantity consumed</th><th style="text-align: right;">Transactions</th></tr></thead>
+        <tbody>
+            {% for u in data.usage_rows %}
+            <tr><td>{{ u.name }}</td><td style="text-align: right;">{{ u.qty }}</td><td style="text-align: right;">{{ u.count }}</td></tr>
+            {% empty %}
+            <tr><td colspan="3" class="empty-state"><h3>No consumption in range</h3></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<p style="margin-top: var(--space-4);"><strong>Spoilage cost in range:</strong> ₱{{ data.spoilage_cost|floatformat:2 }}</p>
+{% endblock %}

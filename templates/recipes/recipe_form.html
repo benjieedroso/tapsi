@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% block title %}{{ action }} Recipe · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>{{ action }} Recipe</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">One recipe per menu item or add-on (FR-070).</p>
+    </div>
+</div>
+
+<div class="form-card" style="max-width: 560px;">
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <ul class="errorlist"><li>{{ form.non_field_errors.0 }}</li></ul>
+        {% endif %}
+        {% for field in form %}
+        {% if field.name != 'ingredient' and field.name != 'quantity' %}
+        <div class="field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+        <div class="settings-section">
+            <h3 class="settings-section-title">First Ingredient Line</h3>
+            <div class="field">
+                {{ form.ingredient.label_tag }}
+                {{ form.ingredient }}
+                {% if form.ingredient.errors %}<ul class="errorlist"><li>{{ form.ingredient.errors.0 }}</li></ul>{% endif %}
+            </div>
+            <div class="field">
+                {{ form.quantity.label_tag }}
+                {{ form.quantity }}
+                {% if form.quantity.errors %}<ul class="errorlist"><li>{{ form.quantity.errors.0 }}</li></ul>{% endif %}
+            </div>
+        </div>
+        <div style="display: flex; gap: var(--space-3); margin-top: var(--space-6);">
+            <button type="submit" class="btn btn-primary">{{ action }} Recipe</button>
+            <a href="{% url 'recipes:recipe_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends 'base.html' %}
+{% block title %}Close Today · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Close Business Day</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">{{ business_date|date:"l, M j, Y" }}</p>
+    </div>
+</div>
+
+{% if already_closed %}
+<div class="alert" style="background: var(--gray-100); border: 1px solid var(--gray-300); padding: var(--space-4); border-radius: var(--radius-md); margin-bottom: var(--space-4);">
+    <strong>{{ business_date|date:"M j, Y" }} is already {{ already_closed.get_status_display|lower }}.</strong>
+    {% if already_closed.status == 'REOPENED' %}It must be re-closed by the Owner — the day is currently unlocked.{% endif %}
+</div>
+{% else %}
+
+{% if open_orders %}
+<div class="alert" style="background: var(--color-error-bg); border: 1px solid var(--color-error); color: var(--color-error); padding: var(--space-4); border-radius: var(--radius-md); margin-bottom: var(--space-4);">
+    <strong>{{ open_orders|length }} open order(s) still exist (FR-140):</strong>
+    <ul style="margin: var(--space-2) 0 0 var(--space-4);">
+        {% for order in open_orders %}
+        <li>#{{ order.order_number }} — {{ order.get_status_display }} — ₱{{ order.total|floatformat:2 }}</li>
+        {% endfor %}
+    </ul>
+    <p style="margin-top: var(--space-2);">Complete or cancel them before closing the day.</p>
+</div>
+{% else %}
+<div class="form-card" style="max-width: 480px;">
+    <h2 style="margin-bottom: var(--space-4);">Cash Reconciliation</h2>
+    <p style="color: var(--gray-500); margin-bottom: var(--space-3);">Expected cash (FR-140): opening float + cash sales − cash refunds − cash expenses.</p>
+    <div class="field">
+        <label>Opening float</label>
+        <div class="input" style="background: var(--gray-100);">₱{{ opening_float|floatformat:2 }}</div>
+    </div>
+    <div class="field">
+        <label>Expected cash</label>
+        <div class="input" style="background: var(--gray-100);">₱{{ expected_cash|floatformat:2 }}</div>
+    </div>
+    <form method="post" action="{% url 'closing:closing_complete' %}">
+        {% csrf_token %}
+        <div class="field">
+            <label for="counted_cash">Counted cash</label>
+            <input type="number" step="0.01" min="0" name="counted_cash" id="counted_cash" class="input" required>
+        </div>
+        <div class="field">
+            <label for="variance_note">Variance explanation (required if beyond ±₱100, FR-141)</label>
+            <input type="text" name="variance_note" id="variance_note" class="input">
+        </div>
+        <div style="display: flex; gap: var(--space-3); margin-top: var(--space-6);">
+            <button type="submit" class="btn btn-primary">Close day &amp; lock</button>
+            <a href="{% url 'closing:closing_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

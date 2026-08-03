@@ -28,11 +28,26 @@
                 {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
                 <li><a href="{% url 'accounts:staff_list' %}" class="{% if request.resolver_match.url_name == 'staff_list' or request.resolver_match.url_name == 'create_staff' %}active{% endif %}">Staff</a></li>
                 <li><a href="{% url 'menu:menu_list' %}" class="{% if 'menu' in request.resolver_match.app_name %}active{% endif %}">Menu</a></li>
+                <li><a href="{% url 'suppliers:supplier_list' %}" class="{% if 'suppliers' in request.resolver_match.app_name %}active{% endif %}">Suppliers</a></li>
+                <li><a href="{% url 'recipes:recipe_list' %}" class="{% if 'recipes' in request.resolver_match.app_name %}active{% endif %}">Recipes</a></li>
                 {% endif %}
                 <li><a href="{% url 'inventory:ingredient_list' %}" class="{% if 'inventory' in request.resolver_match.app_name %}active{% endif %}">Inventory</a></li>
+                <li><a href="{% url 'orders:order_list' %}" class="{% if 'orders' in request.resolver_match.app_name and request.resolver_match.url_name != 'table_list' %}active{% endif %}">Orders</a></li>
+                <li><a href="{% url 'orders:table_list' %}" class="{% if request.resolver_match.url_name == 'table_list' or request.resolver_match.url_name == 'table_create' or request.resolver_match.url_name == 'table_edit' %}active{% endif %}">Tables</a></li>
+                <li><a href="{% url 'orders:kitchen_queue' %}" class="{% if request.resolver_match.url_name == 'kitchen_queue' %}active{% endif %}">Kitchen</a></li>
+                {% if user.role == 'OWNER' or user.role == 'MANAGER' or user.role == 'CASHIER' %}
+                <li><a href="{% url 'expenses:expense_list' %}" class="{% if 'expenses' in request.resolver_match.app_name %}active{% endif %}">Expenses</a></li>
+                {% endif %}
+                <li><a href="{% url 'employees:attendance_list' %}" class="{% if 'employees' in request.resolver_match.app_name %}active{% endif %}">Attendance</a></li>
+                {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
+                <li><a href="{% url 'reports:daily_sales' %}" class="{% if 'reports' in request.resolver_match.app_name %}active{% endif %}">Reports</a></li>
+                <li><a href="{% url 'closing:closing_list' %}" class="{% if 'closing' in request.resolver_match.app_name %}active{% endif %}">Closing</a></li>
+                <li><a href="{% url 'audit_logs:audit_log_list' %}" class="{% if 'audit_logs' in request.resolver_match.app_name %}active{% endif %}">Audit</a></li>
+                {% endif %}
                 {% if user.role == 'OWNER' %}
                 <li><a href="{% url 'accounts:restaurant_settings' %}" class="{% if request.resolver_match.url_name == 'restaurant_settings' %}active{% endif %}">Settings</a></li>
                 {% endif %}
+                <li><a href="{% url 'notifications:notification_list' %}" class="{% if 'notifications' in request.resolver_match.app_name %}active{% endif %}">Bell</a></li>
                 <li>
                     <form method="post" action="{% url 'accounts:logout' %}" style="display:inline">
                         {% csrf_token %}

@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Tables · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Tables</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Color-coded table grid with running bills (FR-095).</p>
+    </div>
+    {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
+    <a class="btn btn-primary" href="{% url 'orders:table_create' %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add table
+    </a>
+    {% endif %}
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-4);">
+    {% for table in tables %}
+    <div class="table-card" style="padding: var(--space-4); border-left: 4px solid
+        {% if table.status == 'AVAILABLE' %}var(--tapsi-600);
+        {% elif table.status == 'OCCUPIED' %}var(--color-error);
+        {% elif table.status == 'RESERVED' %}var(--tapsi-400);
+        {% else %}var(--tapsi-200);{% endif %}">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="font-size: var(--font-size-lg);">{{ table.name }}</h3>
+            <span class="badge {% if table.status == 'AVAILABLE' %}badge-success{% elif table.status == 'OCCUPIED' %}badge-warning{% else %}badge-neutral{% endif %}">{{ table.get_status_display }}</span>
+        </div>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Seats {{ table.seating_capacity }}</p>
+        {% if table.open_orders %}
+        <p style="margin-top: var(--space-2); font-weight: 700; color: var(--tapsi-700);">Bill: ₱{{ table.running_bill|floatformat:2 }}</p>
+        {% for order in table.open_orders %}
+        <a href="{% url 'orders:order_detail' order.pk %}" style="font-size: var(--font-size-sm); color: var(--tapsi-700);">#{{ order.order_number }} — {{ order.get_status_display }}</a><br>
+        {% endfor %}
+        {% endif %}
+        {% if table.status == 'CLEANING' and user.role != 'KITCHEN' %}
+        <form method="post" action="{% url 'orders:table_status' table.pk %}" style="margin-top: var(--space-3);">
+            {% csrf_token %}
+            <input type="hidden" name="status" value="AVAILABLE">
+            <button type="submit" class="btn btn-primary btn-sm">Mark available</button>
+        </form>
+        {% elif table.status == 'OCCUPIED' and not table.open_orders and user.role == 'OWNER' or table.status == 'OCCUPIED' and not table.open_orders and user.role == 'MANAGER' %}
+        <form method="post" action="{% url 'orders:table_status' table.pk %}" style="margin-top: var(--space-3);">
+            {% csrf_token %}
+            <input type="hidden" name="status" value="CLEANING">
+            <button type="submit" class="btn btn-ghost btn-sm">Mark cleaning</button>
+        </form>
+        {% endif %}
+        {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
+        <div style="display: flex; gap: var(--space-2); margin-top: var(--space-3);">
+            <a href="{% url 'orders:table_edit' table.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+            {% if not table.open_orders %}
+            <form method="post" action="{% url 'orders:table_delete' table.pk %}" style="display: inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--color-error);">Delete</button>
+            </form>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="table-card empty-state" style="grid-column: 1 / -1;">
+        <h3>No tables yet</h3>
+        <p>Add tables to start taking dine-in orders.</p>
+        <a href="{% url 'orders:table_create' %}" class="btn btn-primary">Add table</a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Purchase Orders · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Purchase Orders</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">DRAFT → ORDERED → PARTIALLY_RECEIVED → RECEIVED.</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'suppliers:po_create' %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        New purchase order
+    </a>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); flex-wrap: wrap;">
+    <select name="status" class="input" style="width: auto;" onchange="this.form.submit()">
+        <option value="">All statuses</option>
+        {% for value, label in pos.model.Status.choices %}
+        <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <select name="supplier" class="input" style="width: auto;" onchange="this.form.submit()">
+        <option value="">All suppliers</option>
+        {% for supplier in suppliers %}
+        <option value="{{ supplier.pk }}" {% if supplier_id == supplier.pk|stringformat:"s" %}selected{% endif %}>{{ supplier.name }}</option>
+        {% endfor %}
+    </select>
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>PO Number</th>
+                <th>Supplier</th>
+                <th>Created</th>
+                <th style="text-align: right;">Total</th>
+                <th>Status</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for po in pos %}
+            <tr>
+                <td><a href="{% url 'suppliers:po_detail' po.pk %}" style="color: var(--tapsi-700); font-weight: 600;">{{ po.po_number }}</a></td>
+                <td>{{ po.supplier.name }}</td>
+                <td>{{ po.created_at|date:"M j, Y" }}</td>
+                <td style="text-align: right;">₱{{ po.total|floatformat:2 }}</td>
+                <td>
+                    {% if po.status == 'RECEIVED' %}
+                    <span class="badge badge-success">{{ po.get_status_display }}</span>
+                    {% elif po.status == 'CANCELLED' %}
+                    <span class="badge badge-warning">{{ po.get_status_display }}</span>
+                    {% elif po.status == 'DRAFT' %}
+                    <span class="badge badge-neutral">{{ po.get_status_display }}</span>
+                    {% else %}
+                    <span class="badge">{{ po.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: right;">
+                    <a href="{% url 'suppliers:po_detail' po.pk %}" class="btn btn-ghost btn-sm">View</a>
+                    {% if po.status == 'DRAFT' %}
+                    <a href="{% url 'suppliers:po_edit' po.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="empty-state">
+                    <h3>No purchase orders</h3>
+                    <p>Create a purchase order to start receiving stock.</p>
+                    <a href="{% url 'suppliers:po_create' %}" class="btn btn-primary">New purchase order</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

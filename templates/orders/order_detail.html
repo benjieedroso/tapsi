@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% block title %}Order {{ order.order_number }} · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Order {{ order.order_number }}</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">
+            {{ order.get_order_type_display }}
+            {% if order.table %} · Table {{ order.table.name }}{% endif %}
+            {% if order.customer_name %} · {{ order.customer_name }}{% endif %}
+            · <span class="badge {% if order.status == 'COMPLETED' %}badge-success{% elif order.status == 'CANCELLED' %}badge-warning{% else %}badge-neutral{% endif %}">{{ order.get_status_display }}</span>
+        </p>
+    </div>
+    <div style="display: flex; gap: var(--space-3); flex-wrap: wrap;">
+        {% if order.status != 'COMPLETED' and order.status != 'CANCELLED' %}
+        {% if user.role != 'KITCHEN' %}
+        <form method="post" action="{% url 'orders:order_complete' order.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary" {% if order.outstanding_balance > 0 %}title="Outstanding balance: ₱{{ order.outstanding_balance }}"{% endif %}>Complete</button>
+        </form>
+        {% endif %}
+        {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
+        <form method="post" action="{% url 'orders:order_cancel' order.pk %}" onsubmit="var r=prompt('Reason for cancelling {{ order.order_number }}?'); if(!r){return false;} this.reason.value=r;">
+            {% csrf_token %}
+            <input type="hidden" name="reason" value="">
+            <button type="submit" class="btn btn-secondary" style="color: var(--color-error);">Cancel order</button>
+        </form>
+        {% endif %}
+        {% endif %}
+        {% if order.status == 'COMPLETED' %}
+        <a class="btn btn-secondary" href="{% url 'orders:receipt' order.pk %}">Receipt</a>
+        <a class="btn btn-ghost btn-sm" href="{% url 'orders:receipt_reprint' order.pk %}">Reprint</a>
+        {% endif %}
+        {% if order.status == 'PENDING' and order.order_type == 'DINE_IN' %}
+        <form method="post" action="{% url 'orders:order_transfer' order.pk %}" style="display: flex; gap: var(--space-2); align-items: center;">
+            {% csrf_token %}
+            <select name="table_id" class="input" style="width: auto; max-width: 180px;" required>
+                <option value="">Transfer to…</option>
+                {% for table in available_tables %}
+                <option value="{{ table.pk }}">{{ table.name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-ghost btn-sm">Transfer</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if shortfalls %}
+<div class="alert alert-warning">
+    <strong>Projected stock warning:</strong>
+    {% for ingredient, have, need in shortfalls %}
+    {{ ingredient.name }} (need {{ need }}, have {{ have }}){% if not forloop.last %}, {% endif %}
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if order.discount_needs_approval %}
+<div class="alert alert-warning">
+    <strong>Discount requires approval</strong> — manual discount above 10%.
+    {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
+    <form method="post" action="{% url 'orders:order_discount_approve' order.pk %}" style="display: inline;">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-primary btn-sm">Approve</button>
+    </form>
+    {% endif %}
+</div>
+{% endif %}
+
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: var(--space-4);">
+    <div>
+        <div class="table-card">
+            <h3 style="padding: var(--space-4) var(--space-4) 0;">Items</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th style="text-align: right;">Qty</th>
+                        <th style="text-align: right;">Price</th>
+                        <th>Notes</th>
+                        {% if order.status == 'PENDING' %}<th></th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in order.items.all %}
+                    <tr>
+                        <td>
+                            {{ item.item_name }}
+                            {% for addon in item.addons.all %}
+                            <div style="font-size: var(--font-size-sm); color: var(--gray-500);">+ {{ addon.addon_name }} (₱{{ addon.price|floatformat:2 }})</div>
+                            {% endfor %}
+                        </td>
+                        <td style="text-align: right;">{{ item.quantity }}</td>
+                        <td style="text-align: right;">₱{{ item.line_total|floatformat:2 }}</td>
+                        <td>{{ item.notes|default:"—" }}</td>
+                        {% if order.status == 'PENDING' %}
+                        <td style="text-align: right;">
+                            <form method="post" action="{% url 'orders:order_item_remove' order.pk item.pk %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--color-error);">Remove</button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="empty-state"><h3>No items</h3></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if order.status == 'PENDING' %}
+        <div class="table-card" style="margin-top: var(--space-4); padding: var(--space-4);">
+            <h3 style="margin-bottom: var(--space-3);">Add Item</h3>
+            <form method="post" action="{% url 'orders:order_item_add' order.pk %}" novalidate>
+                {% csrf_token %}
+                {% for field in item_form %}
+                <div class="field">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-primary btn-sm">Add item</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <div>
+        <div class="table-card" style="padding: var(--space-4);">
+            <h3 style="margin-bottom: var(--space-3);">Totals</h3>
+            <div style="display: flex; justify-content: space-between;"><span class="text-muted">Subtotal</span><span>₱{{ order.subtotal|floatformat:2 }}</span></div>
+            {% if order.discount_amount %}
+            <div style="display: flex; justify-content: space-between;"><span class="text-muted">Discount ({{ order.get_discount_type_display }}{% if order.discount_ref %} {{ order.discount_ref }}{% endif %})</span><span style="color: var(--color-error);">−₱{{ order.discount_amount|floatformat:2 }}</span></div>
+            {% endif %}
+            <div style="display: flex; justify-content: space-between;"><span class="text-muted">VAT (12%)</span><span>₱{{ order.vat_amount|floatformat:2 }}</span></div>
+            <div style="display: flex; justify-content: space-between; margin-top: var(--space-3); font-size: var(--font-size-lg); font-weight: 700;"><span>Total</span><span>₱{{ order.total|floatformat:2 }}</span></div>
+            <div style="display: flex; justify-content: space-between; margin-top: var(--space-2);"><span class="text-muted">Paid</span><span>₱{{ order.paid_amount|floatformat:2 }}</span></div>
+            {% if order.paid_amount > 0 %}
+            <div style="display: flex; justify-content: space-between; font-weight: 700; color: {% if order.is_settled %}var(--tapsi-700){% else %}var(--color-error){% endif %};"><span>Balance</span><span>₱{{ order.outstanding_balance|floatformat:2 }}</span></div>
+            {% endif %}
+        </div>
+
+        {% if order.status != 'COMPLETED' and order.status != 'CANCELLED' %}
+        <div class="table-card" style="margin-top: var(--space-4); padding: var(--space-4);">
+            <h3 style="margin-bottom: var(--space-3);">Record Payment</h3>
+            <form method="post" action="{% url 'orders:payment_create' order.pk %}" novalidate>
+                {% csrf_token %}
+                {% for field in payment_form %}
+                <div class="field">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-primary btn-sm">Record payment</button>
+            </form>
+        </div>
+
+        <div class="table-card" style="margin-top: var(--space-4); padding: var(--space-4);">
+            <h3 style="margin-bottom: var(--space-3);">Apply Discount (FR-087)</h3>
+            <form method="post" action="{% url 'orders:order_discount' order.pk %}" novalidate>
+                {% csrf_token %}
+                {% for field in discount_form %}
+                <div class="field">
+                    {{ field.label_tag }}
+                    {{ field }}
+                    {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-secondary btn-sm">Apply discount</button>
+            </form>
+        </div>
+        {% endif %}
+
+        {% if order.payments.exists %}
+        <div class="table-card" style="margin-top: var(--space-4); padding: var(--space-4);">
+            <h3 style="margin-bottom: var(--space-3);">Payments</h3>
+            <table>
+                <tbody>
+                    {% for payment in order.payments.all %}
+                    <tr>
+                        <td>{{ payment.get_method_display }}</td>
+                        <td style="text-align: right; {% if payment.amount < 0 %}color: var(--color-error);{% endif %}">₱{{ payment.amount|floatformat:2 }}</td>
+                        <td>{{ payment.created_at|date:"H:i" }}</td>
+                        {% if payment.amount > 0 and user.role == 'OWNER' or payment.amount > 0 and user.role == 'MANAGER' %}
+                        <td>
+                            <form method="post" action="{% url 'orders:payment_refund' payment.pk %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="text" name="reason" placeholder="Refund reason" class="input" style="max-width: 140px;" required>
+                                <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--color-error);">Refund</button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<h3 style="margin: var(--space-5) 0 var(--space-3);">Status History</h3>
+<div class="table-card">
+    <table>
+        <thead><tr><th>From</th><th>To</th><th>By</th><th>Reason</th><th>When</th></tr></thead>
+        <tbody>
+            {% for entry in order.status_history.all %}
+            <tr>
+                <td>{{ entry.get_old_status_display }}</td>
+                <td>{{ entry.get_new_status_display }}</td>
+                <td>{{ entry.changed_by.get_full_name|default:entry.changed_by.email|default:"—" }}</td>
+                <td>{{ entry.reason|default:"—" }}</td>
+                <td>{{ entry.created_at|date:"M j, H:i" }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

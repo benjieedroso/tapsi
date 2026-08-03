@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% block title %}Purchase Report · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Purchase Report</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">FR-136 — POs by supplier and range, with totals and outstanding balances.</p>
+    </div>
+    <a href="?start={{ data.start|date:'Y-m-d' }}&end={{ data.end|date:'Y-m-d' }}&supplier={{ request.GET.supplier }}&export=1" class="btn btn-secondary">Export CSV</a>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-2);">
+    <input type="date" name="start" value="{{ data.start|date:'Y-m-d' }}" class="input" style="width: auto;">
+    <input type="date" name="end" value="{{ data.end|date:'Y-m-d' }}" class="input" style="width: auto;">
+    <select name="supplier" class="input" style="width: auto;">
+        <option value="">All suppliers</option>
+        {% for sid, sname in data.suppliers %}<option value="{{ sid }}" {% if sid|stringformat:"s" == request.GET.supplier %}selected{% endif %}>{{ sname }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Show</button>
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr><th>PO #</th><th>Supplier</th><th>Status</th><th style="text-align: right;">Total</th><th style="text-align: right;">Received</th><th style="text-align: right;">Outstanding</th></tr>
+        </thead>
+        <tbody>
+            {% for row in data.rows %}
+            <tr>
+                <td>{{ row.po.po_number }}</td>
+                <td>{{ row.supplier }}</td>
+                <td><span class="badge badge-secondary">{{ row.po.get_status_display }}</span></td>
+                <td style="text-align: right;">₱{{ row.total|floatformat:2 }}</td>
+                <td style="text-align: right;">₱{{ row.received|floatformat:2 }}</td>
+                <td style="text-align: right;">₱{{ row.outstanding|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" class="empty-state"><h3>No purchase orders in range</h3></td></tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr style="border-top: 2px solid var(--gray-300); font-weight: 700;">
+                <td colspan="4">Totals</td>
+                <td style="text-align: right;">₱{{ data.total_received|floatformat:2 }}</td>
+                <td style="text-align: right;">₱{{ data.total_outstanding|floatformat:2 }}</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+{% endblock %}

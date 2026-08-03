@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}Daily Sales Report · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Daily Sales Report</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">FR-130 — figures from immutable completed orders.</p>
+    </div>
+    <div style="display: flex; gap: var(--space-3);">
+        <a href="?date={{ data.day|date:'Y-m-d' }}&export=1" class="btn btn-secondary">Export CSV</a>
+        <button onclick="window.print()" class="btn btn-secondary">Print PDF</button>
+    </div>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-2);">
+    <input type="date" name="date" value="{{ data.day|date:'Y-m-d' }}" class="input" style="width: auto;">
+    <button type="submit" class="btn btn-secondary btn-sm">Show</button>
+</form>
+
+<div class="table-card">
+    <table>
+        <tbody>
+            <tr><td><strong>Gross sales</strong></td><td style="text-align: right;">₱{{ data.gross|floatformat:2 }}</td></tr>
+            <tr><td>Discounts</td><td style="text-align: right;">− ₱{{ data.discounts|floatformat:2 }}</td></tr>
+            <tr><td><strong>Net sales</strong></td><td style="text-align: right;"><strong>₱{{ data.net|floatformat:2 }}</strong></td></tr>
+            <tr><td>VATable sales</td><td style="text-align: right;">₱{{ data.vatable|floatformat:2 }}</td></tr>
+            <tr><td>VAT-exempt sales (Senior/PWD)</td><td style="text-align: right;">₱{{ data.exempt|floatformat:2 }}</td></tr>
+            <tr><td>Output VAT (12%)</td><td style="text-align: right;">₱{{ data.vat|floatformat:2 }}</td></tr>
+            <tr><td>Refunds</td><td style="text-align: right; color: var(--color-error);">₱{{ data.refunds|floatformat:2 }}</td></tr>
+            <tr><td>Orders completed</td><td style="text-align: right;">{{ data.order_count }}</td></tr>
+            <tr><td>Average order value</td><td style="text-align: right;">₱{{ data.aov|floatformat:2 }}</td></tr>
+            <tr><td>Cancelled orders</td><td style="text-align: right;">{{ data.cancelled }}</td></tr>
+            {% for method, amount in data.method_breakdown.items %}
+            <tr><td>{{ method }} sales</td><td style="text-align: right;">₱{{ amount|floatformat:2 }}</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

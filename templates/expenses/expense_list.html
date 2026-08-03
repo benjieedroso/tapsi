@@ -1,0 +1,89 @@
+{% extends 'base.html' %}
+{% block title %}Expenses · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Expenses</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Operating expenses for accurate profit reporting.</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'expenses:expense_create' %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        New expense
+    </a>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3); flex-wrap: wrap;">
+    <select name="category" class="input" style="width: auto;" onchange="this.form.submit()">
+        <option value="">All categories</option>
+        {% for value, label in categories %}
+        <option value="{{ value }}" {% if category == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <select name="status" class="input" style="width: auto;" onchange="this.form.submit()">
+        <option value="">All statuses</option>
+        {% for value, label in expenses.model.Status.choices %}
+        <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <input type="date" name="from" value="{{ date_from }}" class="input" style="width: auto;">
+    <input type="date" name="to" value="{{ date_to }}" class="input" style="width: auto;">
+    <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Category</th>
+                <th>Payee</th>
+                <th style="text-align: right;">Amount</th>
+                <th>Status</th>
+                <th>By</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for expense in expenses %}
+            <tr>
+                <td>{{ expense.expense_date|date:"M j, Y" }}</td>
+                <td>{{ expense.get_category_display }}</td>
+                <td>{{ expense.payee|default:"—" }}</td>
+                <td style="text-align: right;">₱{{ expense.amount|floatformat:2 }}</td>
+                <td>
+                    {% if expense.status == 'APPROVED' %}
+                    <span class="badge badge-success">{{ expense.get_status_display }}</span>
+                    {% else %}
+                    <span class="badge badge-warning">{{ expense.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td>{{ expense.created_by.get_full_name|default:expense.created_by.email|default:"—" }}</td>
+                <td style="text-align: right;">
+                    {% if expense.status == 'PENDING' and user.role == 'OWNER' or expense.status == 'PENDING' and user.role == 'MANAGER' %}
+                    <form method="post" action="{% url 'expenses:expense_approve' expense.pk %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-ghost btn-sm">Approve</button>
+                    </form>
+                    {% endif %}
+                    {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
+                    <a href="{% url 'expenses:expense_edit' expense.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                    <form method="post" action="{% url 'expenses:expense_delete' expense.pk %}" style="display: inline;" onsubmit="return confirm('Delete this expense?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--color-error);">Delete</button>
+                    </form>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="empty-state">
+                    <h3>No expenses yet</h3>
+                    <p>Record operating costs to see true profit.</p>
+                    <a href="{% url 'expenses:expense_create' %}" class="btn btn-primary">New expense</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

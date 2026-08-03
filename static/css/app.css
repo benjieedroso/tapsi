@@ -287,6 +287,66 @@ button:active, .button:active {
     color: var(--tapsi-700);
 }
 
+.grid article .subtle {
+    color: var(--gray-400);
+    font-size: var(--font-size-xs);
+}
+
+.grid article .dash-list {
+    list-style: none;
+    margin: var(--space-3) 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+}
+
+.grid article .dash-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-sm);
+    color: var(--gray-600);
+}
+
+/* ── Dashboard Trend Chart ── */
+.trend {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    height: 96px;
+    margin: var(--space-4) 0 var(--space-2);
+}
+
+.trend-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    min-width: 0;
+}
+
+.trend-bar {
+    width: 100%;
+    max-width: 18px;
+    background: linear-gradient(180deg, var(--tapsi-400), var(--tapsi-600));
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    transition: height var(--transition-fast);
+}
+
+.trend-bar:hover {
+    filter: brightness(1.1);
+}
+
+.trend-day {
+    font-size: var(--font-size-xs);
+    color: var(--gray-400);
+    margin-top: var(--space-1);
+}
+
 /* ── Page Headings ── */
 .page-heading {
     display: flex;

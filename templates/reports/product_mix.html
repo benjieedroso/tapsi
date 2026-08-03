@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Product Mix Report · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Product Mix Report</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">FR-135 — best and least selling items by quantity and revenue.</p>
+    </div>
+    <a href="?start={{ data.start|date:'Y-m-d' }}&end={{ data.end|date:'Y-m-d' }}&category={{ data.category_id|default:'' }}&export=1" class="btn btn-secondary">Export CSV</a>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-2);">
+    <input type="date" name="start" value="{{ data.start|date:'Y-m-d' }}" class="input" style="width: auto;">
+    <input type="date" name="end" value="{{ data.end|date:'Y-m-d' }}" class="input" style="width: auto;">
+    <select name="category" class="input" style="width: auto;">
+        <option value="">All categories</option>
+        {% for c in data.categories %}<option value="{{ c.pk }}" {% if c.pk|stringformat:"s" == data.category_id %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+    </select>
+    <button type="submit" class="btn btn-secondary btn-sm">Show</button>
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr><th>#</th><th>Item</th><th style="text-align: right;">Quantity sold</th><th style="text-align: right;">Revenue</th><th style="text-align: right;">Line orders</th></tr>
+        </thead>
+        <tbody>
+            {% for row in data.rows %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ row.item_name }}</td>
+                <td style="text-align: right;">{{ row.qty }}</td>
+                <td style="text-align: right;">₱{{ row.revenue|floatformat:2 }}</td>
+                <td style="text-align: right;">{{ row.count }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="empty-state"><h3>No sales in range</h3></td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

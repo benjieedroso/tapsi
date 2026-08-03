@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Profit &amp; Loss · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Profit &amp; Loss</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">FR-133 — net sales − cost of goods (consumption + spoilage) − expenses = profit.</p>
+    </div>
+    <a href="?start={{ data.start|date:'Y-m-d' }}&end={{ data.end|date:'Y-m-d' }}&export=1" class="btn btn-secondary">Export CSV</a>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-2);">
+    <input type="date" name="start" value="{{ data.start|date:'Y-m-d' }}" class="input" style="width: auto;">
+    <input type="date" name="end" value="{{ data.end|date:'Y-m-d' }}" class="input" style="width: auto;">
+    <button type="submit" class="btn btn-secondary btn-sm">Show</button>
+</form>
+
+<div class="table-card">
+    <table>
+        <tbody>
+            <tr><td><strong>Net sales</strong> (completed orders)</td><td style="text-align: right;">₱{{ data.net_sales|floatformat:2 }}</td></tr>
+            <tr><td>Cost of goods sold (consumption + spoilage)</td><td style="text-align: right;">− ₱{{ data.cogs|floatformat:2 }}</td></tr>
+            <tr><td>Expenses (approved)</td><td style="text-align: right;">− ₱{{ data.expenses|floatformat:2 }}</td></tr>
+            <tr style="border-top: 2px solid var(--gray-300);">
+                <td><strong>Profit</strong></td>
+                <td style="text-align: right; font-weight: 700; color: {% if data.profit < 0 %}var(--color-error){% else %}var(--color-success){% endif %};">₱{{ data.profit|floatformat:2 }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

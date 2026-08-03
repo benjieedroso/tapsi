@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Notifications · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Notifications</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">In-app alerts for orders, stock, discounts, and closing (FR-150..152).</p>
+    </div>
+    <form method="post" action="{% url 'notifications:notification_mark_all_read' %}">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-secondary">Mark all read</button>
+    </form>
+</div>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th></th>
+                <th>Type</th>
+                <th>Message</th>
+                <th>Received</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for n in notifications %}
+            <tr style="{% if n.unread %}font-weight: 600;{% endif %}">
+                <td style="width: 40px;">
+                    {% if n.unread %}<span class="badge" style="background: var(--color-primary); color: #fff;">NEW</span>{% endif %}
+                </td>
+                <td><span class="badge badge-secondary">{{ n.get_type_display }}</span></td>
+                <td>
+                    <strong>{{ n.title }}</strong>
+                    {% if n.body %}<br><span style="color: var(--gray-500); font-weight: 400;">{{ n.body }}</span>{% endif %}
+                    {% if n.unread %}
+                    <form method="post" action="{% url 'notifications:notification_mark_read' n.pk %}" style="display: inline; margin-left: var(--space-2);">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-ghost btn-sm">Mark read</button>
+                    </form>
+                    {% endif %}
+                </td>
+                <td style="white-space: nowrap;">{{ n.created_at|date:"M j, H:i" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="empty-state">
+                    <h3>No notifications</h3>
+                    <p>Alerts for low stock, new orders, and more will appear here.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

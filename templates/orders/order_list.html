@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% block title %}Orders · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Orders</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Dine-in, take-out, and delivery orders.</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'orders:order_create' %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        New order
+    </a>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-3);">
+    <select name="status" class="input" style="width: auto;" onchange="this.form.submit()">
+        <option value="">All statuses</option>
+        {% for value, label in orders.model.Status.choices %}
+        <option value="{{ value }}" {% if status == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+    <select name="type" class="input" style="width: auto;" onchange="this.form.submit()">
+        <option value="">All types</option>
+        {% for value, label in orders.model.Type.choices %}
+        <option value="{{ value }}" {% if order_type == value %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Order</th>
+                <th>Type</th>
+                <th>Table</th>
+                <th>Status</th>
+                <th style="text-align: right;">Total</th>
+                <th>Cashier</th>
+                <th>Created</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td><a href="{% url 'orders:order_detail' order.pk %}" style="color: var(--tapsi-700); font-weight: 600;">{{ order.order_number }}</a></td>
+                <td>{{ order.get_order_type_display }}</td>
+                <td>{{ order.table.name|default:"—" }}</td>
+                <td>
+                    {% if order.status == 'COMPLETED' %}
+                    <span class="badge badge-success">{{ order.get_status_display }}</span>
+                    {% elif order.status == 'CANCELLED' %}
+                    <span class="badge badge-warning">{{ order.get_status_display }}</span>
+                    {% elif order.status == 'READY' %}
+                    <span class="badge">{{ order.get_status_display }}</span>
+                    {% else %}
+                    <span class="badge badge-neutral">{{ order.get_status_display }}</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: right;">₱{{ order.total|floatformat:2 }}</td>
+                <td>{{ order.created_by.get_full_name|default:order.created_by.email|default:"—" }}</td>
+                <td>{{ order.created_at|date:"M j, H:i" }}</td>
+                <td style="text-align: right;">
+                    <a href="{% url 'orders:order_detail' order.pk %}" class="btn btn-ghost btn-sm">View</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="empty-state">
+                    <h3>No orders yet</h3>
+                    <p>Create your first order to start selling.</p>
+                    <a href="{% url 'orders:order_create' %}" class="btn btn-primary">New order</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

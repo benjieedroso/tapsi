@@ -10,7 +10,7 @@ All commands run from repo root. Venv is `.venv\Scripts\python.exe` — plain `p
 .\.venv\Scripts\python.exe manage.py test accounts   # 66 tests, ~50s
 .\.venv\Scripts\python.exe manage.py test menu       # 54 tests, ~37s
 .\.venv\Scripts\python.exe manage.py test inventory  # 38 tests, ~45s
-.\.venv\Scripts\python.exe manage.py test            # full suite ~155s
+.\.venv\Scripts\python.exe manage.py test            # full suite 270 tests, ~175s
 .\.venv\Scripts\python.exe manage.py makemigrations <app>
 .\.venv\Scripts\python.exe manage.py migrate
 .\.venv\Scripts\python.exe manage.py runserver
@@ -23,11 +23,20 @@ All commands run from repo root. Venv is `.venv\Scripts\python.exe` — plain `p
 
 ## Architecture
 
-- `config/` — Django project (settings, root urls). Dashboard mounted at `/`, plus `accounts/` and `menu/`.
-- `accounts/` — auth (Module 1) + restaurant/staff management (Module 2): `models.py` (Restaurant, User, StaffAudit, AuthenticationAudit, RefreshToken), `forms.py`, `views.py`, `services.py` (custom JWT — no DRF), `validators.py`.
+- `config/` — Django project (settings, root urls). Dashboard mounted at `/`.
+- `accounts/` — auth (Module 1) + restaurant/staff management (Module 2) + dashboard view (FR-020..026): `models.py` (Restaurant, User, StaffAudit, AuthenticationAudit, RefreshToken), `forms.py`, `views.py`, `services.py` (custom JWT — no DRF), `validators.py`.
 - `menu/` — Menu Management (Module 4): Category, MenuItem, MenuItemPriceHistory, AddOn, MenuItemAddOn.
 - `inventory/` — Inventory (Module 5): Ingredient, InventoryTransaction (append-only ledger, `delete()` raises), LowStockAlert. Stock is derived from the ledger's latest `resulting_balance` (`Ingredient.current_stock`); `InventoryTransaction.save()` computes the balance, rejects negative stock (FR-044), applies weighted-average cost on PURCHASE (FR-047), and reconciles low-stock alerts (FR-045).
-- `templates/` — shared `base.html` navbar + `templates/accounts/`, `templates/menu/`, `dashboard.html`.
+- `suppliers/` — Suppliers (6) + Purchase Orders (7): Supplier, SupplierPayment, PurchaseOrder (number `PO-{year}-{seq:05d}`), PurchaseOrderItem; `po_receive()` writes PURCHASE ledger entries.
+- `recipes/` — Recipes (8): Recipe (one default per menu item), RecipeIngredient; completion/cancellation stock math lives in `orders/services.py` (`consume_recipe_stock`/`restore_recipe_stock`).
+- `orders/` — Orders (9), Tables (10), Payments & Receipts (11): DiningTable, Order (status machine via `transition_to`, `recompute_totals` for VAT/discount math, `apply_discount` w/ >10% approval), OrderItem, OrderItemAddon, OrderStatusHistory, Payment (sequential receipt_no), Refund; `services.py` has `record_payment`, `settle_order`, refund + stock services. Add-ons relate via `item.addons` (NOT `orderitemaddon_set`).
+- `expenses/` — Expenses (12): Expense w/ approval threshold; closed-day lock via `closing.models.is_day_closed()`.
+- `employees/` — Employees (13): Employee (linked to User, salary visible O/M only), Attendance.
+- `reports/` — Reports (14): daily/monthly sales, P&L, inventory, product mix, purchases, tax summary + CSV exports; figures from COMPLETED orders only.
+- `closing/` — Daily Closing (15): DailyClosing (one per restaurant+date, `is_locked()`, expected cash = float + cash sales − cash refunds − cash expenses, ±₱100 variance w/ note, owner-only reopen).
+- `notifications/` — Notifications (16): Notification; `services.py` `notify`/`notify_role` + `Notifier` facade (order_placed, order_completed, order_cancelled, large_discount, refund_issued, po_received); 90-day purge.
+- `audit_logs/` — Audit Logs (17): AuditLog (append-only, `delete()` raises), `services.log`/`log_denied`.
+- `templates/` — shared `base.html` role-based navbar + `templates/<app>/` per module + `dashboard.html` (live FR-020..024 widgets).
 - `static/css/design/tokens.css` + `components.css` — design system; `static/css/app.css` — app styles. **All new pages must use these tokens** (`--tapsi-*`, `--gray-*`, `--space-*`, `btn`, `badge`, `table-card`, `field`, `page-heading`). Preview at `design-guide/preview.html`.
 - `landing/index.html` — static marketing page; all CTAs point to `https://tapsidaily.online/accounts/register/`.
 - Role checks: `user.role in {User.Role.OWNER, User.Role.MANAGER}` for management views (`user_passes_test`); Cashier/Kitchen blocked.
@@ -43,7 +52,7 @@ All commands run from repo root. Venv is `.venv\Scripts\python.exe` — plain `p
 7. **`ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS` read `DJANGO_ALLOWED_HOSTS`/`DJANGO_CSRF_TRUSTED_ORIGINS` env vars** (Azure). Defaults must keep `tapsidaily.online`.
 8. **Pillow is required** (`requirements.txt`) — `ImageField` fails system check without it.
 9. Password reset emails go to console via `accounts.email_backends.DevelopmentConsoleEmailBackend` (lines kept unwrapped for copy-paste).
-10. `Dashboard` view lazily imports `menu.models` inside the function (avoids circular import) and must handle users with `restaurant=None` (test users).
+10. `Dashboard` view (`accounts/views.py:dashboard`) lazily imports menu/orders/inventory/expenses/closing models inside the function (avoids circular import) and must handle users with `restaurant=None` (test users). It queries OrderItem add-ons via `item.addons` (related name is `addons`, NOT `orderitemaddon_set` — prefetch `"addons"`).
 11. Password policy: min 10 chars + letter + number (`PasswordLetterAndNumberValidator`); `must_change_password` flow forces first-login change; `failed_login_count`/`locked_until` implement the 5-strikes/15-min lockout.
 12. Phone validation: local `09xxxxxxxxx` = 11 digits, international `+63...` = 12 digits (`accounts/validators.py`). TIN format `XXX-XXX-XXX-XXX`.
 13. **ModelForm `required` comes from `blank=`, not `default=`.** Fields like `display_order`, `minimum_stock`, `prep_minutes` are required in forms despite having model defaults — tests and POSTs must send them explicitly.
@@ -60,6 +69,6 @@ All commands run from repo root. Venv is `.venv\Scripts\python.exe` — plain `p
 
 ## Status & roadmap
 
-Modules 1–5 complete (FR-001..009, 010..017, 020..026 dashboard shell w/ placeholders until Order modules, 030..037, 040..047). Per SRS Appendix D, next up: Module 6 Suppliers, then Purchase Orders (7), Recipes (8), Orders (9), Tables (10), Payments/Receipts (11), Expenses (12), Employees (13), Reports (14), Daily Closing (15), Notifications (16), Audit (17).
+Modules 1–17 complete (FR-001..009, 010..017, 020..026, 030..037, 040..047, 050..053, 060..065, 070..074, 080..093, 100..103, 110..113, 120..124, 130..139, 140..145, 150..153, 160..163). Full suite: 270 tests green.
 
-Dashboard FR-020..025 widgets are placeholders — wire them to real queries when Order/Inventory models exist. The SRS is AWS-agnostic now (updated to Azure: App Service, Front Door, Azure Database for PostgreSQL, Blob Storage, Key Vault, Monitor, Container Registry, Communication Services Email).
+Known remaining gaps (accepted so far): FR-025 dashboard auto-refresh (S priority, server-rendered templates); audit logging not yet wired into every event FR-160 lists (currently staff ops, employee/attendance edits, closings, denied access — orders/payments/expenses use `log_denied` only where wired); DRF API layer + React SPA from the SRS (templates are the accepted deviation); PostgreSQL (SQLite in dev, Azure Database for PostgreSQL planned). The SRS is AWS-agnostic now (updated to Azure: App Service, Front Door, Azure Database for PostgreSQL, Blob Storage, Key Vault, Monitor, Container Registry, Communication Services Email).

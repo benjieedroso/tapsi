@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Receive {{ po.po_number }} · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Receive {{ po.po_number }}</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Enter received quantities (≤ outstanding per line). Stock and weighted average cost update atomically.</p>
+    </div>
+</div>
+
+<div class="form-card" style="max-width: 560px;">
+    <form method="post" novalidate>
+        {% csrf_token %}
+        <div class="table-card" style="margin-bottom: var(--space-4);">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Ingredient</th>
+                        <th style="text-align: right;">Ordered</th>
+                        <th style="text-align: right;">Outstanding</th>
+                        <th style="text-align: right;">Receive</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in po.items.all %}
+                    <tr>
+                        <td>{{ item.ingredient.name }}</td>
+                        <td style="text-align: right;">{{ item.qty_ordered }}</td>
+                        <td style="text-align: right;">{{ item.outstanding_qty }}</td>
+                        <td style="text-align: right;">
+                            <input type="number" name="received_{{ item.pk }}" class="input" step="0.001" min="0" style="width: 110px; text-align: right;" value="{% if item.outstanding_qty %}{{ item.outstanding_qty }}{% endif %}">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="display: flex; gap: var(--space-3);">
+            <button type="submit" class="btn btn-primary">Receive stock</button>
+            <a href="{% url 'suppliers:po_detail' po.pk %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

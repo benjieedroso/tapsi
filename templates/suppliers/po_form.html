@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}New Purchase Order · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>New Purchase Order</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Add one line item per ingredient. More lines can be added after saving.</p>
+    </div>
+</div>
+
+<div class="form-card" style="max-width: 560px;">
+    <form method="post" novalidate>
+        {% csrf_token %}
+        {% for field in form %}
+        {% if 'line_' not in field.name %}
+        <div class="field">
+            {{ field.label_tag }}
+            {{ field }}
+            {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+        </div>
+        {% endif %}
+        {% endfor %}
+        <div class="settings-section">
+            <h3 class="settings-section-title">First Line Item</h3>
+            {% for field in form %}
+            {% if 'line_' in field.name %}
+            <div class="field">
+                {{ field.label_tag }}
+                {{ field }}
+                {% if field.errors %}<ul class="errorlist"><li>{{ field.errors.0 }}</li></ul>{% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+        <div style="display: flex; gap: var(--space-3); margin-top: var(--space-6);">
+            <button type="submit" class="btn btn-primary">Create purchase order</button>
+            <a href="{% url 'suppliers:po_list' %}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

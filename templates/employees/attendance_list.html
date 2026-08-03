@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %}Attendance · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Attendance</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Clock in and out for your linked employee profile (FR-122).</p>
+    </div>
+    <div style="display: flex; gap: var(--space-3);">
+        <form method="post" action="{% url 'employees:attendance_clock' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="in">
+            <button type="submit" class="btn btn-primary">Clock in</button>
+        </form>
+        <form method="post" action="{% url 'employees:attendance_clock' %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="out">
+            <button type="submit" class="btn btn-secondary">Clock out</button>
+        </form>
+    </div>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-2);">
+    <input type="month" name="month" value="{{ month }}" class="input" style="width: auto;">
+    <button type="submit" class="btn btn-secondary btn-sm">Filter</button>
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Employee</th>
+                <th>Date</th>
+                <th>Clock In</th>
+                <th>Clock Out</th>
+                <th style="text-align: right;">Hours</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr>
+                <td>{{ record.employee.full_name }}</td>
+                <td>{{ record.work_date|date:"M j, Y" }}</td>
+                <td>{% if record.clock_in %}{{ record.clock_in|date:"H:i" }}{% else %}—{% endif %}</td>
+                <td>{% if record.clock_out %}{{ record.clock_out|date:"H:i" }}{% else %}—{% endif %}</td>
+                <td style="text-align: right;">{{ record.hours }}</td>
+                <td style="text-align: right;">
+                    {% if user.role == 'OWNER' or user.role == 'MANAGER' %}
+                    <a href="{% url 'employees:attendance_edit' record.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="empty-state">
+                    <h3>No attendance records</h3>
+                    <p>Clock in to start tracking your hours.</p>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

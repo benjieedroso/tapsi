@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block title %}Tax Summary · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Tax Summary</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">FR-137 — VATable sales, VAT-exempt sales (Senior/PWD), and output VAT.</p>
+    </div>
+    <a href="?start={{ data.start|date:'Y-m-d' }}&end={{ data.end|date:'Y-m-d' }}&export=1" class="btn btn-secondary">Export CSV</a>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-2);">
+    <input type="date" name="start" value="{{ data.start|date:'Y-m-d' }}" class="input" style="width: auto;">
+    <input type="date" name="end" value="{{ data.end|date:'Y-m-d' }}" class="input" style="width: auto;">
+    <button type="submit" class="btn btn-secondary btn-sm">Show</button>
+</form>
+
+<div class="table-card">
+    <table>
+        <tbody>
+            <tr><td>VATable sales</td><td style="text-align: right;">₱{{ data.vatable|floatformat:2 }}</td></tr>
+            <tr><td>VAT-exempt sales (Senior/PWD)</td><td style="text-align: right;">₱{{ data.exempt|floatformat:2 }}</td></tr>
+            <tr><td>Discounts (Senior/PWD + manual)</td><td style="text-align: right;">₱{{ data.discounts|floatformat:2 }}</td></tr>
+            <tr style="border-top: 2px solid var(--gray-300);">
+                <td><strong>Output VAT (12%)</strong></td>
+                <td style="text-align: right; font-weight: 700;">₱{{ data.output_vat|floatformat:2 }}</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+{% endblock %}

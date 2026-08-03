@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Employees · TAPSI{% endblock %}
+{% block content %}
+<div class="page-heading">
+    <div>
+        <h1>Employees</h1>
+        <p style="color: var(--gray-500); font-size: var(--font-size-sm); margin-top: var(--space-1);">Staff records — salary is visible only to Owner/Manager (FR-121).</p>
+    </div>
+    <a class="btn btn-primary" href="{% url 'employees:employee_create' %}">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        Add employee
+    </a>
+</div>
+
+<form method="get" style="margin-bottom: var(--space-4); display: flex; gap: var(--space-2); max-width: 400px;">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search by name..." class="input" style="flex: 1;">
+    <button type="submit" class="btn btn-secondary btn-sm">Search</button>
+</form>
+
+<div class="table-card">
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Position</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th style="text-align: right;">Daily Rate</th>
+                <th style="text-align: right;">Monthly Salary</th>
+                <th style="text-align: right;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for employee in employees %}
+            <tr>
+                <td><strong>{{ employee.full_name }}</strong>{% if employee.nickname %} <span style="color: var(--gray-400);">({{ employee.nickname }})</span>{% endif %}</td>
+                <td>{{ employee.position|default:"—" }}</td>
+                <td>{{ employee.phone|default:"—" }}</td>
+                <td>
+                    {% if employee.employment_status == 'ACTIVE' %}
+                    <span class="badge badge-success">Active</span>
+                    {% else %}
+                    <span class="badge badge-warning">Inactive</span>
+                    {% endif %}
+                </td>
+                <td style="text-align: right;">{% if employee.daily_rate %}₱{{ employee.daily_rate|floatformat:2 }}{% else %}—{% endif %}</td>
+                <td style="text-align: right;">{% if employee.monthly_salary %}₱{{ employee.monthly_salary|floatformat:2 }}{% else %}—{% endif %}</td>
+                <td style="text-align: right;">
+                    <a href="{% url 'employees:employee_edit' employee.pk %}" class="btn btn-ghost btn-sm">Edit</a>
+                    <form method="post" action="{% url 'employees:employee_delete' employee.pk %}" style="display: inline;" onsubmit="return confirm('Deactivate {{ employee.full_name }}?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-ghost btn-sm" style="color: var(--color-error);">Deactivate</button>
+                    </form>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="7" class="empty-state">
+                    <h3>No employees yet</h3>
+                    <p>Add staff records for attendance tracking.</p>
+                    <a href="{% url 'employees:employee_create' %}" class="btn btn-primary">Add employee</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
