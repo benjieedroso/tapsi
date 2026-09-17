@@ -18,7 +18,7 @@ def env_list(name, default):
 # AZURE_APP_HOST = "tapsi-b6ekafhafgdudjdp.southeastasia-01.azurewebsites.net"
 AZURE_APP_HOST = "tapsidaily.online"
 
-ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1", "tapsi-b6ekafhafgdudjdp.southeastasia-01.azurewebsites.net", "[::1]", AZURE_APP_HOST])
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["tapsi.wasmer.app", "tapsidaily.online", "localhost", "127.0.0.1", "tapsi-b6ekafhafgdudjdp.southeastasia-01.azurewebsites.net", "[::1]", AZURE_APP_HOST])
 CSRF_TRUSTED_ORIGINS = env_list(
     "DJANGO_CSRF_TRUSTED_ORIGINS",
     [f"https://{AZURE_APP_HOST}"],
