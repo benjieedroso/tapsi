@@ -1,10 +1,17 @@
-from django.urls import path
-
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 from . import views
 
 app_name = "suppliers"
 
+router = DefaultRouter()
+router.register(r"suppliers", views.SupplierViewSet, basename="supplier")
+router.register(r"purchase-orders", views.PurchaseOrderViewSet, basename="purchase-order")
+router.register(r"payments", views.SupplierPaymentViewSet, basename="supplier-payment")
+
 urlpatterns = [
+    # New endpoint
+    path("api/v1/", include(router.urls)),
     # Suppliers (FR-050..FR-053)
     path("", views.supplier_list, name="supplier_list"),
     path("new/", views.supplier_create, name="supplier_create"),

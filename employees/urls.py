@@ -1,10 +1,15 @@
-from django.urls import path
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+
 
 from . import views
-
+router = DefaultRouter()
+router.register(r"records", views.EmployeeViewSet, basename="employee")
+router.register(r"attendance", views.AttendanceViewSet, basename="attendance")
 app_name = "employees"
 
 urlpatterns = [
+    path("api/v1/", include(router.urls)),
     path("", views.employee_list, name="employee_list"),
     path("new/", views.employee_create, name="employee_create"),
     path("<int:pk>/edit/", views.employee_edit, name="employee_edit"),

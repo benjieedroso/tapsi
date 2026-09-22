@@ -17,6 +17,23 @@ from menu.models import Category, MenuItem
 from orders.models import Order, Payment
 from suppliers.models import PurchaseOrder, SupplierPayment
 
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from menu.views import TenantAwareViewSet
+from .serializers import (
+    DailySalesQuerySerializer,
+    DateRangeQuerySerializer,
+    MonthlySalesQuerySerializer,
+    ProductMixQuerySerializer,
+    PurchaseReportQuerySerializer,
+)
+
+
+
+
 TWO = Decimal("0.01")
 
 
@@ -336,3 +353,162 @@ def tax_summary(request):
                 ("Output VAT", data["output_vat"]), ("Discounts", data["discounts"])]
         return _csv_response(f"tax_summary_{start}_{end}.csv", ["metric", "value"], rows)
     return render(request, "reports/tax_summary.html", {"data": data})
+
+
+#New Code
+class ReportViewSet(TenantAwareViewSet):
+    """
+    DRF API ViewSet wrapping reporting metrics and analytical queries (FR-130..FR-137).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def _get_date_range(self, request):
+        today = timezone.localdate()
+        start = _parse_date(request.query_params.get("start"), today.replace(day=1))
+        end = _parse_date(request.query_params.get("end"), today)
+        return start, end
+
+    @action(detail=False, methods=["get"], url_path="daily-sales")
+    def daily_sales(self, request):
+        """FR-130: Daily sales summary with payment method breakdown."""
+        serializer = DailySalesQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        day = _parse_date(request.query_params.get("date"), timezone.localdate())
+        rid = self.get_restaurant_id()
+        data = _daily_sales_data(rid, day)
+
+        return Response(data)
+
+    @action(detail=False, methods=["get"], url_path="monthly-sales")
+    def monthly_sales(self, request):
+        """FR-132: Monthly sales comparison report."""
+        serializer = MonthlySalesQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        today = timezone.localdate()
+        year = int(request.query_params.get("year", today.year))
+        mon = int(request.query_params.get("month", today.month))
+        target_month = date(year, mon, 1)
+
+        rid = self.get_restaurant_id()
+        data = _monthly_data(rid, target_month)
+
+        return Response(data)
+
+    @action(detail=False, methods=["get"], url_path="profit-loss")
+    def profit_loss(self, request):
+        """FR-133: Profit & Loss performance analysis (Net Sales - COGS - Expenses)."""
+        serializer = DateRangeQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        start, end = self._get_date_range(request)
+        rid = self.get_restaurant_id()
+        data = _pandl_data(rid, start, end)
+        data.update({"start": start, "end": end})
+
+        return Response(data)
+
+    @action(detail=False, methods=["get"], url_path="inventory")
+    def inventory_report(self, request):
+        """FR-134: Inventory usage, spoilage cost, and low stock warnings."""
+        serializer = DateRangeQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        start, end = self._get_date_range(request)
+        rid = self.get_restaurant_id()
+        data = _inventory_data(rid, start, end)
+
+        # Format low_stock and ingredients for clean JSON serialization
+        ingredients_data = [
+            {
+                "id": i.id,
+                "name": i.name,
+                "unit_of_measure": i.unit_of_measure,
+                "current_stock": i.current_stock,
+                "minimum_stock": i.minimum_stock,
+                "average_unit_cost": i.average_unit_cost,
+            }
+            for i in data["ingredients"]
+        ]
+
+        low_stock_data = [
+            {
+                "id": i.id,
+                "name": i.name,
+                "current_stock": i.current_stock,
+                "minimum_stock": i.minimum_stock,
+            }
+            for i in data["low_stock"]
+        ]
+
+        return Response({
+            "start": start,
+            "end": end,
+            "usage_rows": data["usage_rows"],
+            "spoilage_cost": data["spoilage_cost"],
+            "low_stock": low_stock_data,
+            "ingredients": ingredients_data,
+        })
+
+    @action(detail=False, methods=["get"], url_path="product-mix")
+    def product_mix(self, request):
+        """FR-135: Sales breakdown by menu items and category performance."""
+        serializer = ProductMixQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        start, end = self._get_date_range(request)
+        category_id = request.query_params.get("category") or None
+        rid = self.get_restaurant_id()
+
+        data = _product_mix_data(rid, start, end, category_id)
+        data.update({"start": start, "end": end})
+
+        return Response(data)
+
+    @action(detail=False, methods=["get"], url_path="purchases")
+    def purchase_report(self, request):
+        """FR-136: Purchase order summary by date range and supplier."""
+        serializer = PurchaseReportQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        start, end = self._get_date_range(request)
+        supplier_id = request.query_params.get("supplier") or None
+        rid = self.get_restaurant_id()
+
+        data = _purchase_data(rid, start, end, supplier_id)
+
+        rows_data = [
+            {
+                "po_id": r["po"].id,
+                "po_number": r["po"].po_number,
+                "supplier": r["supplier"],
+                "status": r["po"].get_status_display(),
+                "total": r["total"],
+                "received": r["received"],
+                "outstanding": r["outstanding"],
+            }
+            for r in data["rows"]
+        ]
+
+        return Response({
+            "start": start,
+            "end": end,
+            "total_received": data["total_received"],
+            "total_outstanding": data["total_outstanding"],
+            "rows": rows_data,
+        })
+
+    @action(detail=False, methods=["get"], url_path="tax-summary")
+    def tax_summary(self, request):
+        """FR-137: Output VAT, VATable sales, and tax-exempt breakdown."""
+        serializer = DateRangeQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        start, end = self._get_date_range(request)
+        rid = self.get_restaurant_id()
+        data = _tax_data(rid, start, end)
+        data.update({"start": start, "end": end})
+
+        return Response(data)

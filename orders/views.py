@@ -8,7 +8,8 @@ from django.views.decorators.http import require_POST
 
 from accounts.models import User
 from menu.models import AddOn, MenuItem
-
+from menu.views import TenantAwareViewSet
+from .serializers import OrderSerializer
 from . import services
 from .forms import (
     DiscountForm, OrderItemForm, OrderForm, PaymentForm, RefundForm, TableForm,
@@ -18,6 +19,10 @@ from .models import (
     business_date_today, generate_order_number,
 )
 
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.response import Response
 
 def _is_staff(user):
     return user.is_authenticated and user.role in {
@@ -511,3 +516,86 @@ def receipt(request, pk, reprint=False):
         order.save(update_fields=["receipt_reprinted_count"])
     context = services.receipt_context(order, reprint=reprint)
     return render(request, "orders/receipt.html", context)
+
+
+
+class OrderViewSet(TenantAwareViewSet):
+    serializer_class = OrderSerializer
+
+    def get_queryset(self):
+        rid = self.get_restaurant_id()
+        queryset = Order.objects.filter(restaurant_id=rid).prefetch_related(
+            "items__addons", "items__menu_item", "table"
+        )
+
+        # Filters matching query params (?status=&order_type=&date=)
+        status_param = self.request.query_params.get("status")
+        order_type = self.request.query_params.get("order_type")
+        business_date = self.request.query_params.get("date")
+
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+        if order_type:
+            queryset = queryset.filter(order_type=order_type)
+        if business_date:
+            queryset = queryset.filter(business_date=business_date)
+
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+    @action(detail=True, methods=["patch"], url_path="update-status")
+    def update_status(self, request, pk=None):
+        """FR-083..FR-085: Transition order status using model state machine."""
+        order = self.get_object()
+        new_status = request.data.get("status")
+        reason = request.data.get("reason", "")
+
+        if not new_status:
+            raise ValidationError({"status": "New status is required."})
+
+        try:
+            order.transition_to(new_status, user=request.user, reason=reason)
+        except ValidationError as e:
+            return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(OrderSerializer(order, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="apply-discount")
+    def apply_discount(self, request, pk=None):
+        """FR-087: Apply Senior, PWD, or Manual discount to a PENDING order."""
+        order = self.get_object()
+        discount_type = request.data.get("discount_type")
+        discount_ref = request.data.get("discount_ref", "")
+        pct = request.data.get("pct")
+
+        if pct is not None:
+            try:
+                pct = float(pct)
+            except (TypeError, ValueError):
+                raise ValidationError({"pct": "Invalid percentage value."})
+
+        try:
+            order.apply_discount(
+                discount_type=discount_type,
+                discount_ref=discount_ref,
+                pct=pct,
+                user=request.user,
+            )
+        except ValidationError as e:
+            return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(OrderSerializer(order, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="approve-discount")
+    def approve_discount(self, request, pk=None):
+        """Approve manual discounts exceeding 10% (Manager/Owner only)."""
+        order = self.get_object()
+
+        try:
+            order.approve_discount(user=request.user)
+        except ValidationError as e:
+            return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(OrderSerializer(order, context={"request": request}).data)

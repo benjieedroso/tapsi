@@ -10,6 +10,14 @@ from accounts.models import User
 from .forms import AttendanceForm, EmployeeForm
 from .models import Attendance, Employee
 
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.response import Response
+from .serializers import AttendanceSerializer, EmployeeSerializer
+
+from menu.views import TenantAwareViewSet
+
 
 def _is_manager_or_above(user):
     return user.is_authenticated and user.role in {User.Role.OWNER, User.Role.MANAGER}
@@ -139,3 +147,131 @@ def attendance_edit(request, pk):
         messages.success(request, "Attendance record updated (audit-logged).")
         return redirect("employees:attendance_list")
     return render(request, "employees/attendance_form.html", {"form": form, "record": record})
+
+
+#New Code
+class EmployeeViewSet(TenantAwareViewSet):
+    serializer_class = EmployeeSerializer
+
+    def get_queryset(self):
+        # Exclude soft-deleted employees by default
+        return Employee.objects.filter(
+            restaurant_id=self.get_restaurant_id(),
+            is_deleted=False,
+        ).select_related("user")
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        if user.role not in {User.Role.OWNER, User.Role.MANAGER}:
+            raise PermissionDenied("Only Owners and Managers can create employees.")
+
+        serializer.save(restaurant_id=self.get_restaurant_id())
+
+    def perform_update(self, serializer):
+        user = self.request.user
+        if user.role not in {User.Role.OWNER, User.Role.MANAGER}:
+            raise PermissionDenied("Only Owners and Managers can update employee records.")
+
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        user = self.request.user
+        if user.role not in {User.Role.OWNER, User.Role.MANAGER}:
+            raise PermissionDenied("Only Owners and Managers can delete employees.")
+
+        # Soft delete execution
+        instance.soft_delete()
+
+
+class AttendanceViewSet(TenantAwareViewSet):
+    serializer_class = AttendanceSerializer
+
+    def get_queryset(self):
+        rid = self.get_restaurant_id()
+        queryset = Attendance.objects.filter(
+            restaurant_id=rid
+        ).select_related("employee")
+
+        # Optional query parameters filtering
+        employee_id = self.request.query_params.get("employee")
+        work_date = self.request.query_params.get("date")
+
+        if employee_id:
+            queryset = queryset.filter(employee_id=employee_id)
+        if work_date:
+            queryset = queryset.filter(work_date=work_date)
+
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(restaurant_id=self.get_restaurant_id())
+
+    @action(detail=False, methods=["post"], url_path="clock-in")
+    def clock_in(self, request):
+        """FR-122: Clock-in action for employee for today's business date."""
+        rid = self.get_restaurant_id()
+        employee_id = request.data.get("employee_id")
+
+        if not employee_id:
+            raise ValidationError({"employee_id": "Employee ID is required."})
+
+        employee = Employee.objects.filter(
+            id=employee_id, restaurant_id=rid, is_deleted=False
+        ).first()
+
+        if not employee:
+            return Response(
+                {"detail": "Active employee not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        today = timezone.localdate()
+        attendance, created = Attendance.objects.get_or_create(
+            restaurant_id=rid,
+            employee=employee,
+            work_date=today,
+        )
+
+        if attendance.clock_in and not created:
+            return Response(
+                {"detail": f"Employee already clocked in today at {attendance.clock_in}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        attendance.clock_in = timezone.now()
+        attendance.save()
+
+        return Response(AttendanceSerializer(attendance, context={"request": request}).data)
+
+    @action(detail=False, methods=["post"], url_path="clock-out")
+    def clock_out(self, request):
+        """FR-122: Clock-out action for employee for today's business date."""
+        rid = self.get_restaurant_id()
+        employee_id = request.data.get("employee_id")
+
+        if not employee_id:
+            raise ValidationError({"employee_id": "Employee ID is required."})
+
+        today = timezone.localdate()
+        attendance = Attendance.objects.filter(
+            restaurant_id=rid,
+            employee_id=employee_id,
+            work_date=today,
+        ).first()
+
+        if not attendance or not attendance.clock_in:
+            return Response(
+                {"detail": "No active clock-in found for today."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if attendance.clock_out:
+            return Response(
+                {"detail": "Employee has already clocked out for today."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        attendance.clock_out = timezone.now()
+        attendance.save()
+
+        return Response(AttendanceSerializer(attendance, context={"request": request}).data)

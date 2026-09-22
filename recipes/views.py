@@ -2,12 +2,17 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+
+from menu.views import TenantAwareViewSet
 
 from accounts.models import User
 
 from .forms import RecipeForm, RecipeIngredientForm
 from .models import Recipe, RecipeIngredient
-
+from .serializers import RecipeSerializer
 
 def _is_manager_or_above(user):
     return user.is_authenticated and user.role in {User.Role.OWNER, User.Role.MANAGER}
@@ -132,3 +137,39 @@ def recipe_line_remove(request, pk, line_pk):
     line.delete()
     messages.success(request, "Ingredient line removed.")
     return redirect("recipes:recipe_detail", pk=recipe.pk)
+
+#New Code
+class RecipeViewSet(TenantAwareViewSet):
+    serializer_class = RecipeSerializer
+
+    def get_queryset(self):
+        rid = self.get_restaurant_id()
+        queryset = Recipe.objects.filter(restaurant_id=rid).prefetch_related(
+            "lines__ingredient", "menu_item", "addon"
+        )
+
+        menu_item_id = self.request.query_params.get("menu_item")
+        addon_id = self.request.query_params.get("addon")
+
+        if menu_item_id:
+            queryset = queryset.filter(menu_item_id=menu_item_id)
+        if addon_id:
+            queryset = queryset.filter(addon_id=addon_id)
+
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+    @action(detail=False, methods=["get"], url_path="by-target")
+    def get_by_target(self, request):
+        """FR-070: Fast lookup for a specific item/addon recipe."""
+        menu_item_id = request.query_params.get("menu_item")
+        addon_id = request.query_params.get("addon")
+
+        recipe = Recipe.get_for(menu_item=menu_item_id, addon=addon_id)
+        if not recipe or recipe.restaurant_id != self.get_restaurant_id():
+            return Response({"detail": "Recipe not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = self.get_serializer(recipe)
+        return Response(serializer.data)

@@ -1,10 +1,17 @@
-from django.urls import path
+from django.urls import include, path
+from rest_framework.routers import DefaultRouter
 
 from . import views
 
 app_name = "recipes"
 
+router = DefaultRouter()
+router.register(r"records", views.RecipeViewSet, basename="recipe")
+
 urlpatterns = [
+    # DRF API Routes -> /recipes/api/v1/records/
+    path("api/v1/", include(router.urls)),
+    #Legacy
     path("", views.recipe_list, name="recipe_list"),
     path("new/", views.recipe_create, name="recipe_create"),
     path("<int:pk>/", views.recipe_detail, name="recipe_detail"),

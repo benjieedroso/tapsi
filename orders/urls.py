@@ -1,10 +1,15 @@
-from django.urls import path
-
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
 from . import views
+
+router = DefaultRouter()
+router.register(r"orders", views.OrderViewSet, basename="order")
 
 app_name = "orders"
 
 urlpatterns = [
+    # DRF API Routes -> /orders/api/v1/orders/
+    path("api/v1/", include(router.urls)),
     # Tables (FR-090..FR-095)
     path("tables/", views.table_list, name="table_list"),
     path("tables/new/", views.table_create, name="table_create"),

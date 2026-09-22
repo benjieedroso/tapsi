@@ -4,14 +4,23 @@ from django.core.exceptions import ValidationError
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.response import Response
 from accounts.models import User
 
 from .forms import ExpenseForm
 from .models import Expense
+from .serializers import ExpenseSerializer
+
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from menu.views import TenantAwareViewSet
 
 APPROVAL_THRESHOLD = 5000  # FR-111: default ₱5,000
 
-
+#Legacy
 def _is_staff(user):
     return user.is_authenticated and user.role in {
         User.Role.OWNER, User.Role.MANAGER, User.Role.CASHIER,
@@ -129,3 +138,43 @@ def expense_approve(request, pk):
     expense.save(update_fields=["status", "approved_by"])
     messages.success(request, f"Expense approved — it now appears in reports.")
     return redirect("expenses:expense_list")
+
+#New Code:
+class ExpenseViewSet(TenantAwareViewSet):
+    serializer_class = ExpenseSerializer
+
+    def get_queryset(self):
+        queryset = Expense.objects.filter(
+            restaurant_id=self.get_restaurant_id()
+        ).select_related("created_by", "approved_by")
+
+        # Optional query param filters for date range & status
+        status_param = self.request.query_params.get("status")
+        if status_param:
+            queryset = queryset.filter(status=status_param)
+
+        return queryset
+
+    def perform_create(self, serializer):
+        # Automatically attach restaurant_id and created_by user from request
+        serializer.save(
+            restaurant_id=self.get_restaurant_id(),
+            created_by=self.request.user,
+        )
+
+    @action(detail=True, methods=["post"], url_path="approve")
+    def approve(self, request, pk=None):
+        """FR-110..FR-113 Approval Workflow Action"""
+        expense = self.get_object()
+
+        if expense.status == Expense.Status.APPROVED:
+            return Response(
+                {"detail": "Expense is already approved."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        expense.status = Expense.Status.APPROVED
+        expense.approved_by = request.user
+        expense.save(update_fields=["status", "approved_by", "updated_at"])
+
+        return Response(ExpenseSerializer(expense).data)

@@ -4,11 +4,22 @@ from django.db.models import OuterRef, Subquery
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-
+from menu.views import TenantAwareViewSet
 from accounts.models import User
 
 from .forms import IngredientForm, IngredientTransactionForm
 from .models import Ingredient, InventoryTransaction, LowStockAlert
+from .serializers import (
+    IngredientSerializer,
+    InventoryTransactionSerializer,
+    LowStockAlertSerializer,
+)
+
+from django.core.exceptions import ValidationError as DjangoValidationError
+from rest_framework import status
+from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 
 def _is_manager_or_above(user):
@@ -166,3 +177,44 @@ def transaction_create(request):
             )
             return redirect("inventory:stock_card", pk=transaction.ingredient.pk)
     return render(request, "inventory/transaction_form.html", {"form": form})
+
+
+class IngredientViewSet(TenantAwareViewSet):
+    serializer_class = IngredientSerializer
+
+    def get_queryset(self):
+        return Ingredient.objects.filter(
+            restaurant_id=self.get_restaurant_id(),
+            is_deleted=False,
+        )
+
+    def perform_destroy(self, instance):
+        # Soft delete instead of hard purging from DB
+        instance.soft_delete()
+
+
+class InventoryTransactionViewSet(TenantAwareViewSet):
+    serializer_class = InventoryTransactionSerializer
+
+    def get_queryset(self):
+        return InventoryTransaction.objects.filter(
+            restaurant_id=self.get_restaurant_id()
+        ).select_related("ingredient", "user").order_by("-id")
+
+    def perform_create(self, serializer):
+        try:
+            # Passes request.user into model save() for user accountability
+            serializer.save(user=self.request.user)
+        except DjangoValidationError as e:
+            # Converts model-level ValidationError (FR-044/FR-043) into standard DRF 400 Bad Request
+            raise DRFValidationError({"detail": e.messages if hasattr(e, "messages") else str(e)})
+
+
+class LowStockAlertViewSet(TenantAwareViewSet):
+    serializer_class = LowStockAlertSerializer
+
+    def get_queryset(self):
+        return LowStockAlert.objects.filter(
+            restaurant_id=self.get_restaurant_id(),
+            resolved_at__isnull=True,
+        ).select_related("ingredient")

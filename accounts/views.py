@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib import messages
-from django.contrib.auth import login, update_session_auth_hash
+from django.contrib.auth import login, update_session_auth_hash, get_user_model
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.auth.tokens import default_token_generator
 from django.contrib.auth.views import PasswordResetConfirmView, PasswordResetView
@@ -10,9 +10,34 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.utils.encoding import force_bytes
+from django.utils.encoding import force_bytes,force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views import View
+from django.conf import settings
+from django.db import transaction
+
+from rest_framework import status, permissions, viewsets
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.decorators import action
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+from .serializers import CustomTokenObtainPairSerializer, UserMeSerializer
+from .models import Restaurant
+from .serializers import (
+    CustomTokenObtainPairSerializer,
+    UserMeSerializer,
+    RestaurantSerializer,
+    RegisterSerializer,
+    ChangePasswordSerializer,
+    PasswordResetRequestSerializer,
+    PasswordResetConfirmSerializer,
+    RequestEmailChangeSerializer,
+    StaffSerializer,
+)
+User = get_user_model()
+
+
 
 from .forms import (
     CurrentPasswordChangeForm, EmailAuthenticationForm, EmailChangeForm,
@@ -563,3 +588,275 @@ def restaurant_settings(request):
         return redirect("accounts:restaurant_settings")
 
     return render(request, "accounts/restaurant_settings.html", {"restaurant": restaurant, "form": form})
+
+#New Code
+def get_client_ip(request):
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        return x_forwarded_for.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
+
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        if response.status_code == 200:
+            email = request.data.get("email", "")
+            user = User.objects.filter(email=email).first()
+            AuthenticationAudit.objects.create(
+                user=user,
+                email=email,
+                action=AuthenticationAudit.Action.LOGIN_SUCCESS,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
+            )
+        return response
+
+
+class CurrentUserView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserMeSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class RegisterView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            
+            AuthenticationAudit.objects.create(
+                user=user,
+                email=user.email,
+                action=AuthenticationAudit.Action.LOGIN_SUCCESS,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
+            )
+
+            return Response(
+                {
+                    "message": "Restaurant and owner account created successfully.",
+                    "user_id": user.id,
+                    "email": user.email,
+                },
+                status=status.HTTP_201_CREATED,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        if serializer.is_valid():
+            user = request.user
+            if not user.check_password(serializer.validated_data["old_password"]):
+                return Response(
+                    {"old_password": ["Current password is incorrect."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            user.set_password(serializer.validated_data["new_password"])
+            user.must_change_password = False
+            user.save(update_fields=["password", "must_change_password"])
+
+            AuthenticationAudit.objects.create(
+                user=user,
+                email=user.email,
+                action=AuthenticationAudit.Action.PASSWORD_CHANGED,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
+            )
+
+            return Response(
+                {"message": "Password changed successfully."},
+                status=status.HTTP_200_OK,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data["email"]
+            try:
+                user = User.objects.get(email=email, is_active=True)
+                token = default_token_generator.make_token(user)
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                reset_link = f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')}/reset-password-confirm/{uid}/{token}/"
+
+                send_mail(
+                    subject="Reset Your Password",
+                    message=f"Click the link below to reset your password:\n\n{reset_link}",
+                    from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "webmaster@localhost"),
+                    recipient_list=[user.email],
+                    fail_silently=False,
+                )
+            except User.DoesNotExist:
+                pass
+
+            return Response(
+                {"message": "If an account with that email exists, a password reset link has been sent."},
+                status=status.HTTP_200_OK,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetConfirmView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                uid = force_str(urlsafe_base64_decode(serializer.validated_data["uid"]))
+                user = User.objects.get(pk=uid, is_active=True)
+            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+                return Response(
+                    {"detail": "Invalid reset link or user does not exist."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not default_token_generator.check_token(user, serializer.validated_data["token"]):
+                return Response(
+                    {"detail": "Reset token is invalid or has expired."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            user.set_password(serializer.validated_data["new_password"])
+            user.must_change_password = False
+            user.save(update_fields=["password", "must_change_password"])
+
+            AuthenticationAudit.objects.create(
+                user=user,
+                email=user.email,
+                action=AuthenticationAudit.Action.PASSWORD_RESET,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
+            )
+
+            return Response(
+                {"message": "Password reset completed successfully."},
+                status=status.HTTP_200_OK,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RequestEmailChangeView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = RequestEmailChangeSerializer(data=request.data)
+        if serializer.is_valid():
+            new_email = serializer.validated_data["new_email"]
+            user = request.user
+            user.pending_email = new_email
+            user.save(update_fields=["pending_email"])
+
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+            verify_link = f"{getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')}/verify-email/{uid}/{token}/?email={new_email}"
+
+            send_mail(
+                subject="Verify Email Change",
+                message=f"Confirm your new email address by clicking the link:\n\n{verify_link}",
+                from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "webmaster@localhost"),
+                recipient_list=[new_email],
+                fail_silently=False,
+            )
+
+            AuthenticationAudit.objects.create(
+                user=user,
+                email=user.email,
+                action=AuthenticationAudit.Action.EMAIL_CHANGE_REQUESTED,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
+            )
+
+            return Response(
+                {"message": "Verification email sent to the new address."},
+                status=status.HTTP_200_OK,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class RestaurantViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = RestaurantSerializer
+
+    def get_queryset(self):
+        return Restaurant.objects.filter(id=self.request.user.restaurant_id)
+
+    def perform_create(self, serializer):
+        raise permissions.PermissionDenied("New restaurants must be created via the registration endpoint.")
+
+
+class StaffViewSet(viewsets.ModelViewSet):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = StaffSerializer
+
+    def get_queryset(self):
+        return User.objects.filter(
+            restaurant_id=self.request.user.restaurant_id
+        ).exclude(id=self.request.user.id)
+
+    def perform_create(self, serializer):
+        user = serializer.save(restaurant=self.request.user.restaurant)
+        StaffAudit.objects.create(
+            restaurant=self.request.user.restaurant,
+            actor=self.request.user,
+            target=user,
+            action=StaffAudit.Action.PROFILE_UPDATED,
+            detail={"event": "Staff account created"},
+            ip_address=get_client_ip(self.request),
+            user_agent=self.request.META.get("HTTP_USER_AGENT", "")[:512],
+        )
+
+    def perform_destroy(self, instance):
+        instance.soft_delete()
+        StaffAudit.objects.create(
+            restaurant=self.request.user.restaurant,
+            actor=self.request.user,
+            target=instance,
+            action=StaffAudit.Action.SOFT_DELETED,
+            detail={"event": "Staff account soft deleted"},
+            ip_address=get_client_ip(self.request),
+            user_agent=self.request.META.get("HTTP_USER_AGENT", "")[:512],
+        )
+
+    @action(detail=True, methods=["post"], url_path="reset-password")
+    def reset_password(self, request, pk=None):
+        staff_user = self.get_object()
+        new_password = request.data.get("new_password")
+        if not new_password:
+            return Response(
+                {"new_password": ["This field is required."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        staff_user.set_password(new_password)
+        staff_user.must_change_password = True
+        staff_user.save(update_fields=["password", "must_change_password"])
+
+        StaffAudit.objects.create(
+            restaurant=request.user.restaurant,
+            actor=request.user,
+            target=staff_user,
+            action=StaffAudit.Action.PASSWORD_RESET,
+            detail={"event": "Password reset by admin"},
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
+        )
+
+        return Response({"message": f"Password for {staff_user.email} has been reset."})

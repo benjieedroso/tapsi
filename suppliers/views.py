@@ -13,6 +13,19 @@ from inventory.models import InventoryTransaction
 from .forms import PurchaseOrderForm, SupplierForm, SupplierPaymentForm
 from .models import PurchaseOrder, PurchaseOrderItem, Supplier, SupplierPayment
 
+from rest_framework import status
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
+
+from menu.views import TenantAwareViewSet
+from .serializers import (
+    SupplierSerializer,
+    PurchaseOrderSerializer,
+    SupplierPaymentSerializer,
+)
+
+
 
 def _is_manager_or_above(user):
     return user.is_authenticated and user.role in {User.Role.OWNER, User.Role.MANAGER}
@@ -281,3 +294,105 @@ def po_receive(request, pk):
         return redirect("suppliers:po_detail", pk=po.pk)
 
     return render(request, "suppliers/po_receive.html", {"po": po})
+
+#New Code
+class SupplierViewSet(TenantAwareViewSet):
+    serializer_class = SupplierSerializer
+
+    def get_queryset(self):
+        rid = self.get_restaurant_id()
+        queryset = Supplier.objects.filter(restaurant_id=rid, is_deleted=False)
+
+        is_active = self.request.query_params.get("is_active")
+        if is_active is not None:
+            queryset = queryset.filter(is_active=is_active.lower() == "true")
+
+        return queryset
+
+    def perform_destroy(self, instance):
+        """FR-053: Soft-delete supplier instead of hard database deletion."""
+        instance.soft_delete()
+
+
+class PurchaseOrderViewSet(TenantAwareViewSet):
+    serializer_class = PurchaseOrderSerializer
+
+    def get_queryset(self):
+        rid = self.get_restaurant_id()
+        queryset = PurchaseOrder.objects.filter(restaurant_id=rid).prefetch_related(
+            "items__ingredient", "supplier", "placed_by"
+        )
+
+        supplier_id = self.request.query_params.get("supplier")
+        po_status = self.request.query_params.get("status")
+
+        if supplier_id:
+            queryset = queryset.filter(supplier_id=supplier_id)
+        if po_status:
+            queryset = queryset.filter(status=po_status)
+
+        return queryset
+
+    @action(detail=True, methods=["patch"], url_path="update-status")
+    def update_status(self, request, pk=None):
+        """Transition status (DRAFT -> ORDERED -> PARTIALLY_RECEIVED -> RECEIVED / CANCELLED)."""
+        po = self.get_object()
+        new_status = request.data.get("status")
+
+        if new_status not in PurchaseOrder.Status.values:
+            raise ValidationError({"status": "Invalid status option."})
+
+        if po.status == PurchaseOrder.Status.RECEIVED:
+            raise ValidationError("Cannot change status of an already fully received PO.")
+
+        po.status = new_status
+        po.save(update_fields=["status", "updated_at"])
+        return Response(self.get_serializer(po).data)
+
+    @action(detail=True, methods=["post"], url_path="receive-items")
+    def receive_items(self, request, pk=None):
+        """FR-065: Record partial or full received quantities per line item."""
+        po = self.get_object()
+        receipts = request.data.get("items", [])  # Expects list of {"item_id": int, "qty_received": float}
+
+        if not receipts:
+            raise ValidationError({"items": "Receipt items payload required."})
+
+        for receipt in receipts:
+            item_id = receipt.get("item_id")
+            received_qty = receipt.get("qty_received", 0)
+
+            try:
+                line = po.items.get(id=item_id)
+                line.qty_received = received_qty
+                line.save()
+            except po.items.model.DoesNotExist:
+                continue
+
+        # Recalculate status automatically based on line quantities
+        total_ordered = sum(item.qty_ordered for item in po.items.all())
+        total_received = sum(item.qty_received for item in po.items.all())
+
+        if total_received >= total_ordered:
+            po.status = PurchaseOrder.Status.RECEIVED
+        elif total_received > 0:
+            po.status = PurchaseOrder.Status.PARTIALLY_RECEIVED
+
+        po.save(update_fields=["status", "updated_at"])
+        return Response(self.get_serializer(po).data)
+
+
+class SupplierPaymentViewSet(TenantAwareViewSet):
+    serializer_class = SupplierPaymentSerializer
+
+    def get_queryset(self):
+        rid = self.get_restaurant_id()
+        queryset = SupplierPayment.objects.filter(restaurant_id=rid).select_related(
+            "supplier", "recorded_by"
+        )
+
+        supplier_id = self.request.query_params.get("supplier")
+        if supplier_id:
+            queryset = queryset.filter(supplier_id=supplier_id)
+
+        return queryset

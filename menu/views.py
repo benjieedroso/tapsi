@@ -1,14 +1,30 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth import get_user_model
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
+#DRF imports
+from rest_framework import status, viewsets, permissions
+from rest_framework.decorators import action
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework_simplejwt.views import TokenObtainPairView
+
+from .serializers import (
+    CategorySerializer,
+    MenuItemSerializer,
+    AddOnSerializer,
+    MenuItemPriceHistorySerializer,
+)
 
 from accounts.models import User
 
 from .forms import AddOnForm, CategoryForm, MenuItemForm
-from .models import AddOn, Category, MenuItem, MenuItemAddOn, MenuItemPriceHistory
+from .models import Category, MenuItem, MenuItemPriceHistory, AddOn, MenuItemAddOn
 
+User = get_user_model()
 
 def _is_manager_or_above(user):
     return user.is_authenticated and user.role in {User.Role.OWNER, User.Role.MANAGER}
@@ -63,6 +79,8 @@ def category_delete(request, pk):
     category.delete()
     messages.success(request, f"Category \"{category.name}\" deleted.")
     return redirect("menu:category_list")
+
+
 
 
 # ── Menu Item Views (FR-031, FR-034, FR-035) ─────────────────────────
@@ -212,3 +230,135 @@ def menu_toggle_addon(request, menu_pk, addon_pk):
     if request.headers.get("Accept") == "application/json":
         return JsonResponse({"attached": created})
     return redirect("menu:menu_edit", pk=menu_pk)
+
+
+# ── DRF API ViewSets (Tenant-Isolated) ─────────────────────────────── #
+class IsManagerOrOwner(permissions.BasePermission):
+    """Custom DRF Permission restricting write operations to Managers and Owners."""
+
+    def has_permission(self, request, view):
+        return (
+            request.user
+            and request.user.is_authenticated
+            and request.user.role in {User.Role.OWNER, User.Role.MANAGER}
+        )
+
+
+class TenantAwareViewSet(viewsets.ModelViewSet):
+    """Base ViewSet enforcing tenant isolation and read/write permission splitting."""
+
+    def get_permissions(self):
+        # Allow any authenticated employee (Cashier, Staff, Manager, Owner) to GET data
+        if self.action in ["list", "retrieve"]:
+            return [permissions.IsAuthenticated()]
+        return [permissions.IsAuthenticated(), IsManagerOrOwner()]
+
+    def get_restaurant_id(self):
+        return self.request.user.restaurant_id
+
+    def perform_create(self, serializer):
+        serializer.save(restaurant_id=self.get_restaurant_id())
+
+
+class CategoryViewSet(TenantAwareViewSet):
+    """API Endpoint for Category CRUD (FR-030)."""
+
+    serializer_class = CategorySerializer
+
+    def get_queryset(self):
+        return Category.objects.filter(restaurant_id=self.get_restaurant_id())
+
+
+class MenuItemViewSet(TenantAwareViewSet):
+    """API Endpoint for MenuItem CRUD (FR-031, FR-034, FR-035, FR-036)."""
+
+    serializer_class = MenuItemSerializer
+
+    def get_queryset(self):
+        queryset = MenuItem.objects.filter(
+            restaurant_id=self.get_restaurant_id(), is_deleted=False
+        )
+        category_id = self.request.query_params.get("category")
+        search = self.request.query_params.get("q")
+
+        if category_id:
+            queryset = queryset.filter(category_id=category_id)
+        if search:
+            queryset = queryset.filter(name__icontains=search)
+
+        return queryset
+
+    def perform_update(self, serializer):
+        item = serializer.save()
+        # Associate user who made the price update with price history log
+        latest_history = MenuItemPriceHistory.objects.filter(menu_item=item).first()
+        if latest_history and latest_history.changed_by is None:
+            latest_history.changed_by = self.request.user
+            latest_history.save(update_fields=["changed_by"])
+
+    def perform_destroy(self, instance):
+        # FR-035: Enforce soft delete
+        instance.soft_delete()
+
+    @action(detail=True, methods=["post"], url_path="toggle-availability")
+    def toggle_availability(self, request, pk=None):
+        """API Action: Toggle availability (FR-034)."""
+        item = self.get_object()
+        item.is_available = not item.is_available
+        item.save(update_fields=["is_available"])
+        return Response(
+            {"id": item.id, "is_available": item.is_available},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["get"], url_path="price-history")
+    def price_history(self, request, pk=None):
+        """API Action: Get price change logs (FR-036)."""
+        item = self.get_object()
+        history = item.price_history.all()
+        serializer = MenuItemPriceHistorySerializer(history, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="toggle-addon")
+    def toggle_addon(self, request, pk=None):
+        """API Action: Attach/Detach an AddOn from a MenuItem (FR-033)."""
+        item = self.get_object()
+        addon_id = request.data.get("addon_id")
+
+        if not addon_id:
+            return Response(
+                {"error": "addon_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            addon = AddOn.objects.get(
+                pk=addon_id, restaurant_id=self.get_restaurant_id()
+            )
+            link = MenuItemAddOn.objects.filter(menu_item=item, addon=addon).first()
+
+            if link:
+                link.delete()
+                attached = False
+            else:
+                MenuItemAddOn.objects.create(menu_item=item, addon=addon)
+                attached = True
+
+            return Response(
+                {"menu_item_id": item.id, "addon_id": addon.id, "attached": attached},
+                status=status.HTTP_200_OK,
+            )
+        except AddOn.DoesNotExist:
+            return Response(
+                {"error": "AddOn not found in your restaurant."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+
+class AddOnViewSet(TenantAwareViewSet):
+    """API Endpoint for AddOn CRUD (FR-033)."""
+
+    serializer_class = AddOnSerializer
+
+    def get_queryset(self):
+        return AddOn.objects.filter(restaurant_id=self.get_restaurant_id())
