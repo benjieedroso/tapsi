@@ -21,6 +21,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 
 from .serializers import CustomTokenObtainPairSerializer, UserMeSerializer
 from .models import Restaurant
@@ -35,6 +36,8 @@ from .serializers import (
     RequestEmailChangeSerializer,
     StaffSerializer,
 )
+
+
 User = get_user_model()
 
 
@@ -617,10 +620,25 @@ class CustomTokenObtainPairView(TokenObtainPairView):
 
 class CurrentUserView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get(self, request):
-        serializer = UserMeSerializer(request.user)
+        serializer = UserMeSerializer(request.user, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @transaction.atomic
+    def patch(self, request):
+        serializer = UserMeSerializer(
+            request.user, 
+            data=request.data, 
+            partial=True, 
+            context={'request': request}
+        )
+        if serializer.is_valid():
+            updated_user = serializer.save()
+            return Response(UserMeSerializer(updated_user, context={'request': request}).data, status=status.HTTP_200_OK)
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class RegisterView(APIView):

@@ -7,6 +7,13 @@ import { ProtectedRoute } from './components/routes/ProtectedRoute';
 import { Dashboard } from './features/dashboard/pages/Dashboard';
 import { authApi } from './features/accounts/api/accounts';
 
+import { Profile } from './features/accounts/pages/Profile';
+import { StaffList } from './features/accounts/pages/StaffList';
+import { StaffForm } from './features/accounts/pages/StaffForm';
+import { StaffEdit } from './features/accounts/pages/StaffEdit';
+import { StaffResetPassword } from './features/accounts/pages/StaffResetPassword';
+import { RestaurantSettings } from './features/accounts/pages/RestaurantSettings';
+
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -41,6 +48,17 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Accounts & Profile Routes */}
+      <Route path="/profile" element={<Profile />} />
+      <Route path="/profile/settings" element={<RestaurantSettings />} />
+      
+      {/* Staff Routes */}
+      <Route path="/accounts/staff" element={<StaffList />} />
+      <Route path="/accounts/staff/add" element={<StaffForm />} />
+      <Route path="/accounts/staff/:id/edit" element={<StaffEdit />} />
+      <Route path="/accounts/staff/:id/reset-password" element={<StaffResetPassword />} />
+
+      
         {/* Render Login directly without conditional inline <Navigate /> */}
         <Route path="/login" element={<Login onLoginSuccess={setUser} />} />
         <Route path="/register" element={<Register />} />

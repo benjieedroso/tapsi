@@ -55,8 +55,19 @@ class UserMeSerializer(serializers.ModelSerializer):
             "is_active",
             "date_joined",
             "last_login",
+            "avatar"
         ]
-        read_only_fields = fields
+        read_only_fields = ["id", "email", "role", "restaurant"]
+
+    def update(self, instance, validated_data):
+        instance.first_name = validated_data.get('first_name', instance.first_name)
+        instance.last_name = validated_data.get('last_name', instance.last_name)
+        
+        if 'avatar' in validated_data:
+            instance.avatar = validated_data['avatar']
+
+        instance.save()
+        return instance
 
 
 class RestaurantSerializer(serializers.ModelSerializer):

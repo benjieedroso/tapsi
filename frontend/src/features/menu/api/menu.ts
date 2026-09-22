@@ -1,4 +1,4 @@
-import apiClient from './client';
+import { apiClient } from '../../../api/client';
 
 export const getMenuItems = async () => {
   const response = await apiClient.get('/menu/api/v1/items/');

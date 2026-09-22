@@ -95,30 +95,30 @@ export const requestPasswordReset = async (
 };
 
 export const getProfile = async (): Promise<UserProfile> => {
-  const response = await apiClient.get<UserProfile>('/accounts/profile/');
+  const response = await apiClient.get<UserProfile>('/api/v1/auth/me/');
   return response.data;
 };
 
-export const updateProfile = async (
-  payload: UpdateProfilePayload
-): Promise<UserProfile> => {
+export const updateProfile = async (payload: {
+  first_name: string;
+  last_name: string;
+  avatar?: File | null;
+}) => {
   const formData = new FormData();
   formData.append('first_name', payload.first_name);
   formData.append('last_name', payload.last_name);
 
-  if (payload.avatar) {
+  // Only append avatar if a new File was selected by the user
+  if (payload.avatar instanceof File) {
     formData.append('avatar', payload.avatar);
   }
 
-  const response = await apiClient.patch<UserProfile>(
-    '/accounts/profile/',
-    formData,
-    {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }
-  );
+  const response = await apiClient.patch('/api/v1/auth/me/', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
   return response.data;
 };
 
