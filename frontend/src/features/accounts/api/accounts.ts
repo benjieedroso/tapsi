@@ -37,7 +37,7 @@ export const authApi = {
     const token = response.data.access || response.data.token;
     if (token) {
       localStorage.setItem('token', token);
-      localStorage.setItem('access_token', token); // Set both to be 100% safe
+      localStorage.setItem('access_token', token);
     }
     return response.data;
   },

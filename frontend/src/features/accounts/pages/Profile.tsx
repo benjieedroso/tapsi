@@ -95,6 +95,7 @@ export const Profile: React.FC = () => {
 
   return (
     <section className="profile-card">
+      {/* Top Header Navigation */}
       <h1>Your profile</h1>
       {profile?.email && <p className="profile-email">{profile.email}</p>}
 
@@ -174,6 +175,7 @@ export const Profile: React.FC = () => {
         </button>
       </form>
 
+      {/* Bottom Footer Links */}
       <div className="profile-links">
         <Link to="/accounts/email-change">Change email</Link>
         <span>·</span>

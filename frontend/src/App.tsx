@@ -13,6 +13,7 @@ import { StaffForm } from './features/accounts/pages/StaffForm';
 import { StaffEdit } from './features/accounts/pages/StaffEdit';
 import { StaffResetPassword } from './features/accounts/pages/StaffResetPassword';
 import { RestaurantSettings } from './features/accounts/pages/RestaurantSettings';
+import {MenuPage} from './features/menu/pages/MenuPage';
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -48,9 +49,6 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Accounts & Profile Routes */}
-      <Route path="/profile" element={<Profile />} />
-      <Route path="/profile/settings" element={<RestaurantSettings />} />
       
       {/* Staff Routes */}
       <Route path="/accounts/staff" element={<StaffList />} />
@@ -66,8 +64,11 @@ export default function App() {
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<SidebarLayout user={user} />}>
+            {/* Accounts & Profile Routes */}
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/profile/settings" element={<RestaurantSettings />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/menu" element={<h1>Menu View</h1>} />
+            <Route path="/menu" element={< MenuPage />} />
             <Route path="/inventory" element={<h1>Inventory View</h1>} />
           </Route>
         </Route>

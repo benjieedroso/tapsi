@@ -40,7 +40,7 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const response = await apiClient.get('/api/v1/dashboard/');
+        const response = await apiClient.get('/api/v1/');
         setData(response.data);
       } catch (err) {
         console.error('Failed to load dashboard metrics', err);
@@ -56,9 +56,17 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
+    <div
+      className="dashboard-page-container"
+      style={{
+        width: '100%',
+        padding: '2rem 2.5rem',
+        boxSizing: 'border-box',
+        textAlign: 'left',
+      }}
+    >
       {/* Hero Header */}
-      <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+      <section className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
         <span className="text-xs font-semibold uppercase tracking-wider text-blue-600">
           {data?.user?.role_display || 'Owner'}
         </span>
@@ -192,3 +200,5 @@ export const Dashboard: React.FC = () => {
     </div>
   );
 };
+
+export default Dashboard;
