@@ -42,14 +42,15 @@ export const SidebarLayout: React.FC<{ user: UserProfile | null }> = ({ user }) 
 
             {isOwnerOrManager && (
               <>
-                <li><NavLink to="/staff" className={({ isActive }) => (isActive ? 'active' : '')}>Staff</NavLink></li>
+                <li><NavLink to="/accounts/staff" className={({ isActive }) => (isActive ? 'active' : '')}>Staff</NavLink></li>
+                <li><NavLink to="/employees" className={({ isActive }) => (isActive ? 'active' : '')}>Employees</NavLink></li>
                 <li><NavLink to="/menu" className={({ isActive }) => (isActive ? 'active' : '')}>Menu</NavLink></li>
                 <li><NavLink to="/suppliers" className={({ isActive }) => (isActive ? 'active' : '')}>Suppliers</NavLink></li>
                 <li><NavLink to="/recipes" className={({ isActive }) => (isActive ? 'active' : '')}>Recipes</NavLink></li>
               </>
             )}
 
-            <li><NavLink to="/inventory" className={({ isActive }) => (isActive ? 'active' : '')}>Inventory</NavLink></li>
+            <li><NavLink to="/inventory/ingredients" className={({ isActive }) => (isActive ? 'active' : '')}>Inventory</NavLink></li>
             <li><NavLink to="/orders" className={({ isActive }) => (isActive ? 'active' : '')}>Orders</NavLink></li>
             <li><NavLink to="/tables" className={({ isActive }) => (isActive ? 'active' : '')}>Tables</NavLink></li>
             <li><NavLink to="/kitchen" className={({ isActive }) => (isActive ? 'active' : '')}>Kitchen</NavLink></li>
@@ -69,7 +70,7 @@ export const SidebarLayout: React.FC<{ user: UserProfile | null }> = ({ user }) 
             )}
 
             {isOwner && (
-              <li><NavLink to="/settings" className={({ isActive }) => (isActive ? 'active' : '')}>Settings</NavLink></li>
+              <li><NavLink to="/profile/settings" className={({ isActive }) => (isActive ? 'active' : '')}>Settings</NavLink></li>
             )}
 
             <li><NavLink to="/notifications" className={({ isActive }) => (isActive ? 'active' : '')}>Bell</NavLink></li>

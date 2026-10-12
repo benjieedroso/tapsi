@@ -1,8 +1,7 @@
-export interface ChangeInitialPasswordPayload {
+export interface ChangePasswordParams {
+  old_password: string;
   new_password: string;
-  confirm_password: string;
 }
-
 export interface ApiErrorResponse {
   detail?: string;
   email?: string[];

@@ -19,7 +19,7 @@ urlpatterns = [
 
     # Domain Modules
     path("api/v1/menu/", include("menu.urls")),
-    path("api/v1/orders/", include("orders.urls")),
+    path("api/v1/", include("orders.urls")),
     path("api/v1/inventory/", include("inventory.urls")),
     path("api/v1/expenses/", include("expenses.urls")),
     path("api/v1/employees/", include("employees.urls")),

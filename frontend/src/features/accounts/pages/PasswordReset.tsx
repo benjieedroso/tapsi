@@ -18,35 +18,34 @@ export const PasswordReset: React.FC = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    if (!email.trim()) {
-      setFieldError('Email address is required.');
-      return;
-    }
+  if (!email.trim()) {
+    setFieldError('Email address is required.');
+    return;
+  }
 
-    setLoading(true);
+  setLoading(true);
 
-    try {
-      await requestPasswordReset({ email: email.trim() });
-      
-      // Navigate to the success confirmation page
+  try {
+    await requestPasswordReset({ email: email.trim() });
+    
+    // Navigate to the React UI route (no api/v1 prefix)
+    navigate('/password-reset/done');
+  } catch (err: any) {
+    const apiErr: ApiErrorResponse = err.response?.data || {};
+
+    if (apiErr.detail) {
+      setError(apiErr.detail);
+    } else if (Array.isArray(apiErr.email)) {
+      setFieldError(apiErr.email[0]);
+    } else {
       navigate('/password-reset/done');
-    } catch (err: any) {
-      const apiErr: ApiErrorResponse = err.response?.data || {};
-
-      if (apiErr.detail) {
-        setError(apiErr.detail);
-      } else if (Array.isArray(apiErr.email)) {
-        setFieldError(apiErr.email[0]);
-      } else {
-        // Standard security practice: navigate to done screen anyway or show error depending on backend logic
-        navigate('/password-reset/done');
-      }
-    } finally {
-      setLoading(false);
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <section className="auth-card">

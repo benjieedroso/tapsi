@@ -13,7 +13,59 @@ import { StaffForm } from './features/accounts/pages/StaffForm';
 import { StaffEdit } from './features/accounts/pages/StaffEdit';
 import { StaffResetPassword } from './features/accounts/pages/StaffResetPassword';
 import { RestaurantSettings } from './features/accounts/pages/RestaurantSettings';
-import {MenuPage} from './features/menu/pages/MenuPage';
+import { MenuPage } from './features/menu/pages/MenuPage';
+import { PasswordReset } from './features/accounts/pages/PasswordReset';
+import { PasswordResetConfirm } from './features/accounts/pages/PasswordResetConfirm';
+import { PasswordResetDone } from './features/accounts/pages/PasswordResetDone';
+import { KitchenQueue } from './features/orders/pages/KitchenQueue';
+
+// Inventory Imports
+import { IngredientList } from './features/inventory/pages/IngredientList';
+import { IngredientForm } from './features/inventory/pages/IngredientForm';
+import { StockCard } from './features/inventory/pages/StockCard';
+import { TransactionForm } from './features/inventory/pages/TransactionForm';
+
+// Expenses Imports
+import { ExpenseList } from './features/expenses/pages/ExpenseList';
+import { ExpenseForm } from './features/expenses/pages/ExpenseForm';
+
+// Employees Imports
+import { EmployeeList } from './features/employees/pages/EmployeeList';
+import { EmployeeForm } from './features/employees/pages/EmployeeForm';
+import { AttendanceList } from './features/employees/pages/AttendanceList';
+import { AttendanceForm } from './features/employees/pages/AttendanceForm';
+
+
+// Suppliers & Purchase Orders Imports
+import { SupplierList } from './features/suppliers/pages/SupplierList';
+import { SupplierForm } from './features/suppliers/pages/SupplierForm';
+import { SupplierDetail } from './features/suppliers/pages/SupplierDetail';
+import { POList } from './features/suppliers/pages/POList';
+import { POForm } from './features/suppliers/pages/POForm';
+import { PODetail } from './features/suppliers/pages/PODetail';
+import { POReceive } from './features/suppliers/pages/POReceive';
+
+// Closing Imports
+import { ClosingList } from './features/closing/pages/ClosingList';
+import { ClosingPrepare } from './features/closing/pages/ClosingPrepare';
+import { EODReport } from './features/closing/pages/EODReport';
+
+// Reports Imports
+import { DailySalesReport } from './features/reports/pages/DailySalesReport';
+import { InventoryReport } from './features/reports/pages/InventoryReport';
+import { MonthlySalesReport } from './features/reports/pages/MonthlySalesReport';
+import { ProductMixReport } from './features/reports/pages/ProductMixReport';
+import { ProfitLossReport } from './features/reports/pages/ProfitLossReport';
+import { PurchaseReport } from './features/reports/pages/PurchaseReport';
+import { TaxSummaryReport } from './features/reports/pages/TaxSummaryReport';
+
+// Notifications Imports
+import { NotificationList } from './features/notifications/pages/NotificationList';
+
+// Audit Imports
+// Audit Logs Import
+import { AuditLogList } from './features/audit/pages/AuditLogList';
+
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -50,12 +102,14 @@ export default function App() {
     <BrowserRouter>
       <Routes>
       
-      {/* Staff Routes */}
-      <Route path="/accounts/staff" element={<StaffList />} />
-      <Route path="/accounts/staff/add" element={<StaffForm />} />
-      <Route path="/accounts/staff/:id/edit" element={<StaffEdit />} />
-      <Route path="/accounts/staff/:id/reset-password" element={<StaffResetPassword />} />
 
+      {/* Password Reset Flow Routes */}
+      <Route path="/forgot-password" element={<PasswordReset />} />
+      <Route path="/password-reset/done" element={<PasswordResetDone />} />
+      <Route 
+          path="/reset-password-confirm/:uid/:token" 
+          element={<PasswordResetConfirm />} 
+        />
       
         {/* Render Login directly without conditional inline <Navigate /> */}
         <Route path="/login" element={<Login onLoginSuccess={setUser} />} />
@@ -70,6 +124,65 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/menu" element={< MenuPage />} />
             <Route path="/inventory" element={<h1>Inventory View</h1>} />
+            <Route path="/orders" element={< KitchenQueue />} / >
+
+            {/* Staff Routes */}
+            <Route path="/accounts/staff" element={<StaffList />} />
+            <Route path="/accounts/staff/add" element={<StaffForm />} />
+            <Route path="/accounts/staff/:id/edit" element={<StaffEdit />} />
+            <Route path="/accounts/staff/:id/reset-password" element={<StaffResetPassword />} />
+
+            {/* Inventory Routes */}
+            <Route path="/inventory" element={<Navigate to="/inventory/ingredients" replace />} />
+            <Route path="/inventory/ingredients" element={<IngredientList />} />
+            <Route path="/inventory/ingredients/create" element={<IngredientForm />} />
+            <Route path="/inventory/ingredients/:id/edit" element={<IngredientForm />} />
+            <Route path="/inventory/ingredients/:id/stock-card" element={<StockCard />} />
+            <Route path="/inventory/transactions/create" element={<TransactionForm />} />
+
+            {/* Expenses Routes */}
+            <Route path="/expenses" element={<ExpenseList userRole={user?.role} />} />
+            <Route path="/expenses/create" element={<ExpenseForm />} />
+            <Route path="/expenses/:id/edit" element={<ExpenseForm />} />
+
+            {/* Employees & Attendance Routes */}
+            <Route path="/employees" element={<EmployeeList userRole={user?.role} />} />
+            <Route path="/employees/create" element={<EmployeeForm />} />
+            <Route path="/employees/:id/edit" element={<EmployeeForm />} />
+            <Route path="/attendance" element={<AttendanceList userRole={user?.role} />} />
+            <Route path="/attendance/:id/edit" element={<AttendanceForm />} />
+
+
+            {/* Suppliers & Purchase Orders Routes */}
+            <Route path="/suppliers" element={<SupplierList />} />
+            <Route path="/suppliers/create" element={<SupplierForm />} />
+            <Route path="/suppliers/:id" element={<SupplierDetail />} />
+            <Route path="/suppliers/:id/edit" element={<SupplierForm />} />
+            <Route path="/suppliers/purchase-orders" element={<POList />} />
+            <Route path="/suppliers/purchase-orders/create" element={<POForm />} />
+            <Route path="/suppliers/purchase-orders/:id" element={<PODetail />} />
+            <Route path="/suppliers/purchase-orders/:id/receive" element={<POReceive />} />
+
+            {/* Closing Reports */}
+            <Route path="/closing" element={<ClosingList userRole={user?.role} />} />
+            <Route path="/closing/prepare" element={<ClosingPrepare />} />
+            <Route path="/closing/:id/report" element={<EODReport />} />
+
+            {/* Reports Routes */}
+            <Route path="/reports" element={<Navigate to="/reports/daily-sales" replace />} />
+            <Route path="/reports/daily-sales" element={<DailySalesReport />} />
+            <Route path="/reports/inventory" element={<InventoryReport />} />
+            <Route path="/reports/monthly-sales" element={<MonthlySalesReport />} />
+            <Route path="/reports/product-mix" element={<ProductMixReport />} />
+            <Route path="/reports/profit-loss" element={<ProfitLossReport />} />
+            <Route path="/reports/purchases" element={<PurchaseReport />} />
+            <Route path="/reports/tax-summary" element={<TaxSummaryReport />} />
+
+            {/* Notification Routes */}
+            <Route path="/notifications" element={<NotificationList />} />
+
+            {/* Audit Routes */}
+            <Route path="/audit" element={<AuditLogList userRole={user?.role} />} />
           </Route>
         </Route>
 

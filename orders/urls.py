@@ -4,12 +4,13 @@ from . import views
 
 router = DefaultRouter()
 router.register(r"orders", views.OrderViewSet, basename="order")
+router.register(r"tables", views.OrderViewSet, basename="tables")
 
 app_name = "orders"
 
 urlpatterns = [
     # DRF API Routes -> /orders/api/v1/orders/
-    path("api/v1/", include(router.urls)),
+    path("", include(router.urls)),
     # Tables (FR-090..FR-095)
     path("tables/", views.table_list, name="table_list"),
     path("tables/new/", views.table_create, name="table_create"),

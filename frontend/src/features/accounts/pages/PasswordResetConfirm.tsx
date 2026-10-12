@@ -90,7 +90,7 @@ export const PasswordResetConfirm: React.FC = () => {
         <div className="alert alert-error">
           <p>
             This reset link is invalid or has expired.{' '}
-            <Link to="/password-reset">Request a new one</Link>.
+            <Link to="/forgot-password">Request a new one</Link>.
           </p>
         </div>
       ) : (

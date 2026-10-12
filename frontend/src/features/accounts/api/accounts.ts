@@ -2,7 +2,6 @@ import { apiClient } from '../../../api/client';
 import type {
   RequestEmailChangePayload,
   EmailChangeResponse,
-  ChangeInitialPasswordPayload,
   PasswordResetConfirmPayload,
   PasswordResetConfirmResponse,
   RequestPasswordResetPayload,
@@ -15,7 +14,8 @@ import type {
   UpdateStaffPayload,
   CreateStaffPayload,
   StaffRole,
-  ResetStaffPasswordPayload
+  ResetStaffPasswordPayload,
+  ChangePasswordParams
 } from '../types/accounts.types';
 
 export interface RegisterPayload {
@@ -58,11 +58,6 @@ export const authApi = {
   },
 };
 
-export const changeInitialPassword = async (
-  payload: ChangeInitialPasswordPayload
-): Promise<void> => {
-  await apiClient.post('/accounts/change-initial-password/', payload);
-};
 
 export const requestEmailChange = async (
   payload: RequestEmailChangePayload
@@ -78,7 +73,7 @@ export const confirmPasswordReset = async (
   payload: PasswordResetConfirmPayload
 ): Promise<PasswordResetConfirmResponse> => {
   const response = await apiClient.post<PasswordResetConfirmResponse>(
-    '/accounts/password-reset-confirm/',
+    'api/v1/auth/password/reset/confirm/',
     payload
   );
   return response.data;
@@ -88,11 +83,18 @@ export const requestPasswordReset = async (
   payload: RequestPasswordResetPayload
 ): Promise<RequestPasswordResetResponse> => {
   const response = await apiClient.post<RequestPasswordResetResponse>(
-    '/accounts/password-reset/',
+    'api/v1/auth/password/reset/',
     payload
   );
   return response.data;
 };
+
+
+export const changePassword = async (data: ChangePasswordParams) => {
+  const response = await apiClient.post('/api/v1/auth/password/reset/', data);
+  return response.data;
+};
+
 
 export const getProfile = async (): Promise<UserProfile> => {
   const response = await apiClient.get<UserProfile>('/api/v1/auth/me/');

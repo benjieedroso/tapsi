@@ -1,0 +1,142 @@
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
+import { suppliersApi } from '../api/suppliers';
+import type { PODetail, POItem } from '../types/suppliers.types';
+
+export const POReceive: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
+
+  const [po, setPo] = useState<PODetail | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Map of item id -> received quantity input
+  const [receivedValues, setReceivedValues] = useState<Record<number, number | ''>>({});
+
+  useEffect(() => {
+    if (!id) return;
+    const fetchPO = async () => {
+      try {
+        const data = await suppliersApi.getPODetail(Number(id));
+        setPo(data);
+
+        // Initialize default received quantities to outstanding quantities
+        const initialValues: Record<number, number> = {};
+        data.items.forEach((item: POItem) => {
+          initialValues[item.id] = item.outstanding_qty ?? 0;
+        });
+        setReceivedValues(initialValues);
+      } catch (err: any) {
+        setError(err.response?.data?.detail || 'Failed to load purchase order.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPO();
+  }, [id]);
+
+  const handleInputChange = (itemId: number, val: string) => {
+    setReceivedValues((prev) => ({
+      ...prev,
+      [itemId]: val === '' ? '' : Number(val),
+    }));
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!id) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    // Build payload matching backend expectation (e.g. { item_id: qty })
+    const payload: Record<string, number> = {};
+    Object.entries(receivedValues).forEach(([itemId, qty]) => {
+      if (qty !== '') {
+        payload[itemId] = Number(qty);
+      }
+    });
+
+    try {
+      await suppliersApi.receivePO(Number(id), payload);
+      navigate(`/suppliers/purchase-orders/${id}`);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || 'Failed to receive stock.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading && !po) {
+    return <div style={{ padding: 'var(--space-4)' }}>Loading receive form...</div>;
+  }
+
+  if (error && !po) {
+    return <div className="alert alert-danger" style={{ margin: 'var(--space-4)' }}>{error}</div>;
+  }
+
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <h1>Receive {po?.po_number}</h1>
+          <p style={{ color: 'var(--gray-500)', fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-1)' }}>
+            Enter received quantities (≤ outstanding per line). Stock and weighted average cost update atomically.
+          </p>
+        </div>
+      </div>
+
+      <div className="form-card" style={{ maxWidth: '560px' }}>
+        {error && <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div>}
+
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="table-card" style={{ marginBottom: 'var(--space-4)' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>Ingredient</th>
+                  <th style={{ textAlign: 'right' }}>Ordered</th>
+                  <th style={{ textAlign: 'right' }}>Outstanding</th>
+                  <th style={{ textAlign: 'right' }}>Receive</th>
+                </tr>
+              </thead>
+              <tbody>
+                {po?.items.map((item: POItem) => (
+                  <tr key={item.id}>
+                    <td>{item.ingredient_name}</td>
+                    <td style={{ textAlign: 'right' }}>{item.qty_ordered}</td>
+                    <td style={{ textAlign: 'right' }}>{item.outstanding_qty}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <input
+                        type="number"
+                        className="input"
+                        step="0.001"
+                        min="0"
+                        style={{ width: '110px', textAlign: 'right' }}
+                        value={receivedValues[item.id] ?? ''}
+                        onChange={(e) => handleInputChange(item.id, e.target.value)}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+            <button type="submit" className="btn btn-primary" disabled={submitting}>
+              {submitting ? 'Receiving...' : 'Receive stock'}
+            </button>
+            <Link to={`/suppliers/purchase-orders/${id}`} className="btn btn-secondary">
+              Cancel
+            </Link>
+          </div>
+        </form>
+      </div>
+    </>
+  );
+};
+
+export default POReceive;

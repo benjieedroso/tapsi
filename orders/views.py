@@ -518,6 +518,9 @@ def receipt(request, pk, reprint=False):
     return render(request, "orders/receipt.html", context)
 
 
+"""
+New Code
+"""
 
 class OrderViewSet(TenantAwareViewSet):
     serializer_class = OrderSerializer
@@ -528,9 +531,9 @@ class OrderViewSet(TenantAwareViewSet):
             "items__addons", "items__menu_item", "table"
         )
 
-        # Filters matching query params (?status=&order_type=&date=)
         status_param = self.request.query_params.get("status")
-        order_type = self.request.query_params.get("order_type")
+        # Handle both ?type= and ?order_type= from query params
+        order_type = self.request.query_params.get("type") or self.request.query_params.get("order_type")
         business_date = self.request.query_params.get("date")
 
         if status_param:
@@ -544,6 +547,100 @@ class OrderViewSet(TenantAwareViewSet):
 
     def perform_create(self, serializer):
         serializer.save()
+
+    # =========================================================================
+    # KITCHEN QUEUE ENDPOINTS
+    # GET /api/v1/orders/kitchen/
+    # =========================================================================
+    @action(detail=False, methods=["get"], url_path="kitchen")
+    def kitchen_queue(self, request):
+        rid = self.get_restaurant_id()
+        orders = Order.objects.filter(
+            restaurant_id=rid,
+            status__in=["PENDING", "PREPARING"]
+        ).order_by("created_at")
+        
+        # Replace with your KitchenOrderSerializer if you have a distinct one
+        serializer = OrderSerializer(orders, many=True, context={"request": request})
+        return Response(serializer.data)
+
+    # POST /api/v1/orders/kitchen/{id}/advance/
+    @action(detail=True, methods=["post"], url_path=r"kitchen/(?P<order_id>\d+)/advance", url_name="kitchen-advance")
+    def kitchen_advance(self, request, pk=None):
+        # DRF will match /kitchen/{id}/advance/ on the viewset
+        order = self.get_object()
+        if order.status == "PENDING":
+            order.transition_to("PREPARING", user=request.user)
+        elif order.status == "PREPARING":
+            order.transition_to("READY", user=request.user)
+        else:
+            return Response({"detail": "Order is not in a printable queue status."}, status=status.HTTP_400_BAD_REQUEST)
+        
+        return Response(OrderSerializer(order, context={"request": request}).data)
+
+    # =========================================================================
+    # RECEIPT ENDPOINT
+    # GET /api/v1/orders/{id}/receipt/
+    # =========================================================================
+    @action(detail=True, methods=["get"], url_path="receipt")
+    def receipt(self, request, pk=None):
+        order = self.get_object()
+        restaurant = order.restaurant
+        
+        # Check reprint count
+        reprint = order.receipt_reprinted_count > 0
+        order.receipt_reprinted_count += 1
+        order.save(update_fields=["receipt_reprinted_count"])
+
+        data = {
+            "order": OrderSerializer(order, context={"request": request}).data,
+            "reprint": reprint,
+            "restaurant": {
+                "name": getattr(restaurant, "name", "TAPSI Restaurant"),
+                "address": getattr(restaurant, "address", ""),
+                "contact_number": getattr(restaurant, "contact_number", ""),
+                "tin": getattr(restaurant, "tin", ""),
+                "is_vat_registered": getattr(restaurant, "is_vat_registered", True),
+                "receipt_footer": getattr(restaurant, "receipt_footer", "Thank you for dining with us!"),
+            },
+            "items": [],  # Pass serialized items
+            "payments": [], # Pass serialized payments
+        }
+        return Response(data)
+
+    # =========================================================================
+    # ITEM, PAYMENT, & ORDER MANAGEMENT
+    # =========================================================================
+    @action(detail=True, methods=["post"], url_path="items")
+    def add_item(self, request, pk=None):
+        order = self.get_object()
+        # Item creation logic
+        return Response(OrderSerializer(order, context={"request": request}).data)
+
+    @action(detail=True, methods=["delete"], url_path=r"items/(?P<item_id>\d+)")
+    def remove_item(self, request, pk=None, item_id=None):
+        order = self.get_object()
+        # Item removal logic
+        return Response(OrderSerializer(order, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="payments")
+    def record_payment(self, request, pk=None):
+        order = self.get_object()
+        # Payment recording logic
+        return Response(OrderSerializer(order, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="complete")
+    def complete(self, request, pk=None):
+        order = self.get_object()
+        order.transition_to("COMPLETED", user=request.user)
+        return Response(OrderSerializer(order, context={"request": request}).data)
+
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        order = self.get_object()
+        reason = request.data.get("reason", "")
+        order.transition_to("CANCELLED", user=request.user, reason=reason)
+        return Response(OrderSerializer(order, context={"request": request}).data)
 
     @action(detail=True, methods=["patch"], url_path="update-status")
     def update_status(self, request, pk=None):
@@ -562,13 +659,13 @@ class OrderViewSet(TenantAwareViewSet):
 
         return Response(OrderSerializer(order, context={"request": request}).data)
 
-    @action(detail=True, methods=["post"], url_path="apply-discount")
+    @action(detail=True, methods=["post"], url_path="discount")
     def apply_discount(self, request, pk=None):
         """FR-087: Apply Senior, PWD, or Manual discount to a PENDING order."""
         order = self.get_object()
         discount_type = request.data.get("discount_type")
         discount_ref = request.data.get("discount_ref", "")
-        pct = request.data.get("pct")
+        pct = request.data.get("pct") or request.data.get("value")
 
         if pct is not None:
             try:

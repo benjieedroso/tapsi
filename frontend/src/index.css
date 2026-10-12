@@ -295,3 +295,306 @@ code {
   text-decoration: none;
   font-weight: 500;
 }
+
+/* Center and constrain the Auth & Password Reset cards */
+.auth-card {
+  max-width: 440px !important;
+  width: 100% !important;
+  margin: 4rem auto !important;
+  padding: 2.5rem 2rem !important;
+  background-color: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  box-sizing: border-box;
+}
+
+/* Titles and subtitles */
+.auth-card h1 {
+  font-size: 1.75rem !important;
+  font-weight: 700 !important;
+  color: #111827 !important;
+  text-align: center !important;
+  margin: 0 0 0.5rem 0 !important;
+}
+
+.auth-card p {
+  font-size: 0.875rem !important;
+  color: #6b7280 !important;
+  text-align: center !important;
+  margin-bottom: 1.5rem !important;
+  line-height: 1.4;
+}
+
+/* Field alignment */
+.auth-card .field {
+  text-align: left !important;
+  margin-bottom: 1.25rem !important;
+}
+
+.auth-card label {
+  display: block !important;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  margin-bottom: 0.375rem !important;
+}
+
+.auth-card input[type="email"],
+.auth-card input[type="password"],
+.auth-card input[type="text"] {
+  width: 100% !important;
+  padding: 0.625rem 0.875rem !important;
+  border: 1px solid #d1d5db !important;
+  border-radius: 8px !important;
+  font-size: 0.95rem !important;
+  box-sizing: border-box !important;
+}
+
+.auth-card input:focus {
+  border-color: #16a34a !important;
+  outline: 2px solid rgba(22, 163, 74, 0.2) !important;
+}
+
+.auth-card .error-message {
+  font-size: 0.75rem;
+  color: #dc2626;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+/* Primary Button */
+.auth-card button[type="submit"] {
+  width: 100% !important;
+  padding: 0.75rem !important;
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+  border-radius: 8px !important;
+  border: none !important;
+  cursor: pointer;
+  margin-top: 0.5rem !important;
+  transition: background-color 0.15s ease;
+}
+
+.auth-card button[type="submit"]:hover {
+  background-color: #15803d !important;
+}
+
+/* Footer Link */
+.auth-footer-links {
+  margin-top: 1.5rem;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.auth-footer-links a {
+  color: #6b7280;
+  text-decoration: none;
+}
+
+.auth-footer-links a:hover {
+  color: #111827;
+  text-decoration: underline;
+}
+
+
+/* Kitchen Queue Layout */
+.kitchen-queue-container {
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.kitchen-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1.5rem;
+}
+
+/* Card Container */
+.kitchen-card {
+  background-color: #ffffff;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  padding: 1.25rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.kitchen-card.status-preparing {
+  border-top: 4px solid #f59e0b; /* Warning yellow/amber */
+}
+
+.kitchen-card.status-pending {
+  border-top: 4px solid #9ca3af; /* Neutral gray */
+}
+
+/* Card Header & Content */
+.kitchen-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kitchen-card .card-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.kitchen-card .order-type {
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+.kitchen-card .elapsed-time {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0.35rem 0 1rem 0;
+}
+
+/* Items & Addons */
+.order-items-list {
+  flex-grow: 1;
+  margin-bottom: 1.25rem;
+}
+
+.order-item-row {
+  padding-top: 0.5rem;
+  margin-top: 0.5rem;
+  border-top: 1px solid #f3f4f6;
+}
+
+.order-item-row .item-title {
+  color: #1f2937;
+  font-size: 0.95rem;
+}
+
+.order-item-row .addon-note {
+  font-size: 0.825rem;
+  color: #4b5563;
+  margin-left: 0.75rem;
+  margin-top: 0.15rem;
+}
+
+.order-item-row .item-instruction {
+  font-size: 0.825rem;
+  color: #15803d;
+  font-weight: 500;
+  margin-left: 0.75rem;
+  margin-top: 0.15rem;
+}
+
+/* Badges */
+.badge {
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.badge-warning {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.badge-neutral {
+  background-color: #f3f4f6;
+  color: #4b5563;
+}
+
+/* Action Button */
+.kitchen-card .card-actions {
+  margin-top: auto;
+}
+
+.kitchen-card .btn.full-width {
+  width: 100%;
+}
+
+/* Order Detail Grid */
+.order-detail-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  .order-detail-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.action-button-group {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.inline-form {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.inline-refund {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.input-compact {
+  max-width: 140px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.25rem;
+}
+
+.summary-row.grand-total {
+  margin-top: 0.75rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.summary-row.balance-row.settled {
+  color: var(--tapsi-700, #15803d);
+  font-weight: 700;
+}
+
+.summary-row.balance-row.unsettled {
+  color: var(--color-error, #dc2626);
+  font-weight: 700;
+}
+
+.badge-success {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.text-danger, .btn-danger-text {
+  color: #dc2626;
+}
+
+.addon-text {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
