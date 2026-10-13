@@ -3,11 +3,11 @@ import { useParams, Link } from 'react-router-dom';
 import { ordersApi } from '../api/orders';
 import type { OrderDetail, TableOption, MenuItemOption, UserRole, Shortfall } from '../types/orders.types';
 
-interface Props {
-  userRole: UserRole;
+interface OrderDetailPageProps {
+  userRole?: string;
 }
 
-export const OrderDetailPage: React.FC<Props> = ({ userRole }) => {
+export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({ userRole }) => {
   const { id } = useParams<{ id: string }>();
   const orderId = Number(id);
 

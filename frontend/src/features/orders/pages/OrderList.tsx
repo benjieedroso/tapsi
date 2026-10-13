@@ -3,7 +3,11 @@ import { Link } from 'react-router-dom';
 import { ordersApi } from '../api/orders';
 import type { OrderListItem, OrderListFilterOptions } from '../types/orders.types';
 
-export const OrderList: React.FC = () => {
+interface OrderListProps {
+  userRole?: string;
+}
+
+export const OrderList: React.FC<OrderListProps> = ({ userRole }) => {
   const [orders, setOrders] = useState<OrderListItem[]>([]);
   const [filters, setFilters] = useState<OrderListFilterOptions>({
     statusChoices: [],
@@ -23,8 +27,9 @@ export const OrderList: React.FC = () => {
         status: selectedStatus || undefined,
         type: selectedType || undefined,
       });
-      setOrders(data.orders);
-      if (data.filters) {
+      // Safely handle potential undefined/null arrays from the response
+      setOrders(data?.orders || []);
+      if (data?.filters) {
         setFilters(data.filters);
       }
       setError(null);
@@ -51,6 +56,10 @@ export const OrderList: React.FC = () => {
         return 'badge badge-neutral';
     }
   };
+
+  const statusChoices = filters?.statusChoices || [];
+  const typeChoices = filters?.typeChoices || [];
+  const safeOrders = orders || [];
 
   return (
     <>
@@ -81,7 +90,7 @@ export const OrderList: React.FC = () => {
           onChange={(e) => setSelectedStatus(e.target.value)}
         >
           <option value="">All statuses</option>
-          {filters.statusChoices.map((choice) => (
+          {statusChoices.map((choice) => (
             <option key={choice.value} value={choice.value}>
               {choice.label}
             </option>
@@ -96,7 +105,7 @@ export const OrderList: React.FC = () => {
           onChange={(e) => setSelectedType(e.target.value)}
         >
           <option value="">All types</option>
-          {filters.typeChoices.map((choice) => (
+          {typeChoices.map((choice) => (
             <option key={choice.value} value={choice.value}>
               {choice.label}
             </option>
@@ -127,7 +136,7 @@ export const OrderList: React.FC = () => {
                   Loading orders...
                 </td>
               </tr>
-            ) : orders.length === 0 ? (
+            ) : safeOrders.length === 0 ? (
               <tr>
                 <td colSpan={8} className="empty-state">
                   <h3>No orders yet</h3>
@@ -138,7 +147,7 @@ export const OrderList: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              orders.map((order) => (
+              safeOrders.map((order) => (
                 <tr key={order.id}>
                   <td>
                     <Link
@@ -156,7 +165,7 @@ export const OrderList: React.FC = () => {
                     </span>
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    ₱{parseFloat(order.total).toFixed(2)}
+                    ₱{parseFloat(order.total || '0').toFixed(2)}
                   </td>
                   <td>{order.created_by_name || '—'}</td>
                   <td>{order.created_at}</td>

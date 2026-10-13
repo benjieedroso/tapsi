@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { createStaffMember, getRestaurantSettings } from '../api/accounts';
-import type { ApiErrorResponse, CreateStaffPayload } from '../types/accounts.types';
+import type { CreateStaffPayload } from '../types/accounts.types';
 
 export const StaffForm: React.FC = () => {
   const navigate = useNavigate();
@@ -11,22 +11,21 @@ export const StaffForm: React.FC = () => {
     first_name: '',
     last_name: '',
     email: '',
-    role: 'staff',
+    role: 'CASHIER', // Match exact Django backend role choices (e.g., OWNER, MANAGER, CASHIER, STAFF)
   });
 
   const [creating, setCreating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof CreateStaffPayload, string>>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const fetchRestaurantName = async () => {
       try {
         const settings = await getRestaurantSettings();
-        if (settings.name) {
+        if (settings?.name) {
           setRestaurantName(settings.name);
         }
       } catch (err) {
-        // Fall back gracefully to default string if settings fetch fails
         console.error('Could not fetch restaurant settings name:', err);
       }
     };
@@ -38,7 +37,7 @@ export const StaffForm: React.FC = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     setErrorMessage(null);
-    setFieldErrors((prev) => ({ ...prev, [name]: undefined }));
+    setFieldErrors((prev) => ({ ...prev, [name]: '' }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -53,18 +52,28 @@ export const StaffForm: React.FC = () => {
         state: { message: `Staff member ${formData.email} added successfully.` },
       });
     } catch (err: any) {
-      const apiErr: ApiErrorResponse = err.response?.data || {};
+      const responseData = err.response?.data || {};
+      
+      // Handle Django DRF field errors and general details properly
+      if (typeof responseData === 'object' && responseData !== null) {
+        const newFieldErrors: Record<string, string> = {};
+        let generalError = '';
 
-      if (apiErr.detail) {
-        setErrorMessage(apiErr.detail);
-      } else {
-        setFieldErrors({
-          first_name: Array.isArray(apiErr.first_name) ? apiErr.first_name[0] : undefined,
-          last_name: Array.isArray(apiErr.last_name) ? apiErr.last_name[0] : undefined,
-          email: Array.isArray(apiErr.email) ? apiErr.email[0] : undefined,
-          role: Array.isArray(apiErr.role) ? apiErr.role[0] : undefined,
+        Object.keys(responseData).forEach((key) => {
+          const val = responseData[key];
+          if (key === 'detail') {
+            generalError = typeof val === 'string' ? val : JSON.stringify(val);
+          } else if (Array.isArray(val)) {
+            newFieldErrors[key] = val[0];
+          } else if (typeof val === 'string') {
+            newFieldErrors[key] = val;
+          }
         });
-        setErrorMessage('Failed to create staff account. Please review the errors below.');
+
+        setFieldErrors(newFieldErrors);
+        setErrorMessage(generalError || 'Failed to create staff account. Please review the errors below.');
+      } else {
+        setErrorMessage('An unexpected error occurred.');
       }
     } finally {
       setCreating(false);
@@ -79,7 +88,7 @@ export const StaffForm: React.FC = () => {
       </p>
 
       {errorMessage && (
-        <div className="alert alert-danger" role="alert">
+        <div className="alert alert-danger" role="alert" style={{ marginBottom: 'var(--space-4)' }}>
           {errorMessage}
         </div>
       )}
@@ -91,13 +100,14 @@ export const StaffForm: React.FC = () => {
             type="text"
             id="first_name"
             name="first_name"
+            className="input"
             value={formData.first_name}
             onChange={handleChange}
             required
             disabled={creating}
             placeholder="John"
           />
-          {fieldErrors.first_name && <span className="error-message">{fieldErrors.first_name}</span>}
+          {fieldErrors.first_name && <span className="error-message" style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>{fieldErrors.first_name}</span>}
         </div>
 
         <div className="field">
@@ -106,13 +116,14 @@ export const StaffForm: React.FC = () => {
             type="text"
             id="last_name"
             name="last_name"
+            className="input"
             value={formData.last_name}
             onChange={handleChange}
             required
             disabled={creating}
             placeholder="Doe"
           />
-          {fieldErrors.last_name && <span className="error-message">{fieldErrors.last_name}</span>}
+          {fieldErrors.last_name && <span className="error-message" style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>{fieldErrors.last_name}</span>}
         </div>
 
         <div className="field">
@@ -121,14 +132,15 @@ export const StaffForm: React.FC = () => {
             type="email"
             id="email"
             name="email"
+            className="input"
             value={formData.email}
             onChange={handleChange}
             required
             disabled={creating}
             placeholder="staff@restaurant.com"
           />
-          <small>An initial temporary password will be generated for the user.</small>
-          {fieldErrors.email && <span className="error-message">{fieldErrors.email}</span>}
+          <small style={{ display: 'block', color: 'var(--gray-500)', marginTop: '2px' }}>An initial temporary password will be generated for the user.</small>
+          {fieldErrors.email && <span className="error-message" style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>{fieldErrors.email}</span>}
         </div>
 
         <div className="field">
@@ -136,15 +148,17 @@ export const StaffForm: React.FC = () => {
           <select
             id="role"
             name="role"
+            className="input"
             value={formData.role}
             onChange={handleChange}
             disabled={creating}
           >
-            <option value="staff">Staff</option>
-            <option value="manager">Manager</option>
-            <option value="admin">Admin</option>
+            <option value="CASHIER">Cashier</option>
+            <option value="MANAGER">Manager</option>
+            <option value="KITCHEN">Kitchen</option>
+            <option value="OWNER">Owner</option>
           </select>
-          {fieldErrors.role && <span className="error-message">{fieldErrors.role}</span>}
+          {fieldErrors.role && <span className="error-message" style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>{fieldErrors.role}</span>}
         </div>
 
         <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>

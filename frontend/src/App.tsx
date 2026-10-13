@@ -17,7 +17,15 @@ import { MenuPage } from './features/menu/pages/MenuPage';
 import { PasswordReset } from './features/accounts/pages/PasswordReset';
 import { PasswordResetConfirm } from './features/accounts/pages/PasswordResetConfirm';
 import { PasswordResetDone } from './features/accounts/pages/PasswordResetDone';
+
+// Orders & Tables Imports
+import { OrderList } from './features/orders/pages/OrderList';
+import { OrderForm } from './features/orders/pages/OrderForm';
+import { OrderDetailPage } from './features/orders/pages/OrderDetailPage';
 import { KitchenQueue } from './features/orders/pages/KitchenQueue';
+import { Receipt } from './features/orders/pages/Receipt';
+import { TableList } from './features/orders/pages/TableList';
+import { TableForm } from './features/orders/pages/TableForm';
 
 // Inventory Imports
 import { IngredientList } from './features/inventory/pages/IngredientList';
@@ -34,7 +42,6 @@ import { EmployeeList } from './features/employees/pages/EmployeeList';
 import { EmployeeForm } from './features/employees/pages/EmployeeForm';
 import { AttendanceList } from './features/employees/pages/AttendanceList';
 import { AttendanceForm } from './features/employees/pages/AttendanceForm';
-
 
 // Suppliers & Purchase Orders Imports
 import { SupplierList } from './features/suppliers/pages/SupplierList';
@@ -59,13 +66,16 @@ import { ProfitLossReport } from './features/reports/pages/ProfitLossReport';
 import { PurchaseReport } from './features/reports/pages/PurchaseReport';
 import { TaxSummaryReport } from './features/reports/pages/TaxSummaryReport';
 
+// Recipes Imports
+import { RecipeList } from './features/recipes/pages/RecipeList';
+import { RecipeDetail } from './features/recipes/pages/RecipeDetail';
+import { RecipeForm } from './features/recipes/pages/RecipeForm';
+
 // Notifications Imports
 import { NotificationList } from './features/notifications/pages/NotificationList';
 
-// Audit Imports
 // Audit Logs Import
 import { AuditLogList } from './features/audit/pages/AuditLogList';
-
 
 export default function App() {
   const [user, setUser] = useState<any>(null);
@@ -101,30 +111,39 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-      
-
-      {/* Password Reset Flow Routes */}
-      <Route path="/forgot-password" element={<PasswordReset />} />
-      <Route path="/password-reset/done" element={<PasswordResetDone />} />
-      <Route 
+        {/* Password Reset Flow Routes */}
+        <Route path="/forgot-password" element={<PasswordReset />} />
+        <Route path="/password-reset/done" element={<PasswordResetDone />} />
+        <Route 
           path="/reset-password-confirm/:uid/:token" 
           element={<PasswordResetConfirm />} 
         />
       
-        {/* Render Login directly without conditional inline <Navigate /> */}
+        {/* Auth Routes */}
         <Route path="/login" element={<Login onLoginSuccess={setUser} />} />
         <Route path="/register" element={<Register />} />
 
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<SidebarLayout user={user} />}>
-            {/* Accounts & Profile Routes */}
+            {/* Dashboard & Profile */}
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/settings" element={<RestaurantSettings />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/menu" element={< MenuPage />} />
-            <Route path="/inventory" element={<h1>Inventory View</h1>} />
-            <Route path="/orders" element={< KitchenQueue />} / >
+            <Route path="/menu" element={<MenuPage />} />
+
+            {/* Orders & Kitchen Routes */}
+            <Route path="/orders" element={<OrderList userRole={user?.role} />} />
+            <Route path="/orders/create" element={<OrderForm />} />
+            <Route path="/orders/:id" element={<OrderDetailPage userRole={user?.role} />} />
+            <Route path="/orders/:id/receipt" element={<Receipt />} />
+            <Route path="/kitchen" element={<KitchenQueue />} />
+            <Route path="/kitchen-queue" element={<Navigate to="/kitchen" replace />} />
+
+            {/* Tables Routes */}
+            <Route path="/tables" element={<TableList />} />
+            <Route path="/tables/create" element={<TableForm />} />
+            <Route path="/tables/:id/edit" element={<TableForm />} />
 
             {/* Staff Routes */}
             <Route path="/accounts/staff" element={<StaffList />} />
@@ -152,7 +171,6 @@ export default function App() {
             <Route path="/attendance" element={<AttendanceList userRole={user?.role} />} />
             <Route path="/attendance/:id/edit" element={<AttendanceForm />} />
 
-
             {/* Suppliers & Purchase Orders Routes */}
             <Route path="/suppliers" element={<SupplierList />} />
             <Route path="/suppliers/create" element={<SupplierForm />} />
@@ -163,7 +181,7 @@ export default function App() {
             <Route path="/suppliers/purchase-orders/:id" element={<PODetail />} />
             <Route path="/suppliers/purchase-orders/:id/receive" element={<POReceive />} />
 
-            {/* Closing Reports */}
+            {/* Closing Routes */}
             <Route path="/closing" element={<ClosingList userRole={user?.role} />} />
             <Route path="/closing/prepare" element={<ClosingPrepare />} />
             <Route path="/closing/:id/report" element={<EODReport />} />
@@ -177,6 +195,12 @@ export default function App() {
             <Route path="/reports/profit-loss" element={<ProfitLossReport />} />
             <Route path="/reports/purchases" element={<PurchaseReport />} />
             <Route path="/reports/tax-summary" element={<TaxSummaryReport />} />
+
+            {/* Recipe Routes */}
+            <Route path="/recipes" element={<RecipeList />} />
+            <Route path="/recipes/create" element={<RecipeForm />} />
+            <Route path="/recipes/:id" element={<RecipeDetail />} />
+            <Route path="/recipes/:id/edit" element={<RecipeForm />} />
 
             {/* Notification Routes */}
             <Route path="/notifications" element={<NotificationList />} />

@@ -2,7 +2,7 @@ import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 interface UserProfile {
-  role: 'OWNER' | 'MANAGER' | 'CASHIER' | 'STAFF';
+  role: 'OWNER' | 'MANAGER' | 'CASHIER' | 'STAFF' | 'KITCHEN';
   restaurant?: { name: string };
 }
 
@@ -12,12 +12,14 @@ export const SidebarLayout: React.FC<{ user: UserProfile | null }> = ({ user }) 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('token');
     navigate('/login');
   };
 
-  const isOwnerOrManager = user?.role === 'OWNER' || user?.role === 'MANAGER';
   const isOwner = user?.role === 'OWNER';
+  const isOwnerOrManager = user?.role === 'OWNER' || user?.role === 'MANAGER';
   const isFinancialRole = isOwnerOrManager || user?.role === 'CASHIER';
+  const isKitchen = user?.role === 'KITCHEN';
 
   return (
     <div className="app-container">
@@ -37,48 +39,129 @@ export const SidebarLayout: React.FC<{ user: UserProfile | null }> = ({ user }) 
 
         <nav className="sidebar-nav">
           <ul className="sidebar-links">
-            <li><NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'active' : '')}>Dashboard</NavLink></li>
-            <li><NavLink to="/profile" className={({ isActive }) => (isActive ? 'active' : '')}>Profile</NavLink></li>
+            <li>
+              <NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'active' : '')}>
+                Dashboard
+              </NavLink>
+            </li>
+            <li>
+              <NavLink to="/profile" className={({ isActive }) => (isActive ? 'active' : '')}>
+                Profile
+              </NavLink>
+            </li>
 
             {isOwnerOrManager && (
               <>
-                <li><NavLink to="/accounts/staff" className={({ isActive }) => (isActive ? 'active' : '')}>Staff</NavLink></li>
-                <li><NavLink to="/employees" className={({ isActive }) => (isActive ? 'active' : '')}>Employees</NavLink></li>
-                <li><NavLink to="/menu" className={({ isActive }) => (isActive ? 'active' : '')}>Menu</NavLink></li>
-                <li><NavLink to="/suppliers" className={({ isActive }) => (isActive ? 'active' : '')}>Suppliers</NavLink></li>
-                <li><NavLink to="/recipes" className={({ isActive }) => (isActive ? 'active' : '')}>Recipes</NavLink></li>
+                <li>
+                  <NavLink to="/accounts/staff" className={({ isActive }) => (isActive ? 'active' : '')}>
+                    Staff
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/employees" className={({ isActive }) => (isActive ? 'active' : '')}>
+                    Employees
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/menu" className={({ isActive }) => (isActive ? 'active' : '')}>
+                    Menu
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/suppliers" className={({ isActive }) => (isActive ? 'active' : '')}>
+                    Suppliers &amp; POs
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/recipes" className={({ isActive }) => (isActive ? 'active' : '')}>
+                    Recipes
+                  </NavLink>
+                </li>
               </>
             )}
 
-            <li><NavLink to="/inventory/ingredients" className={({ isActive }) => (isActive ? 'active' : '')}>Inventory</NavLink></li>
-            <li><NavLink to="/orders" className={({ isActive }) => (isActive ? 'active' : '')}>Orders</NavLink></li>
-            <li><NavLink to="/tables" className={({ isActive }) => (isActive ? 'active' : '')}>Tables</NavLink></li>
-            <li><NavLink to="/kitchen" className={({ isActive }) => (isActive ? 'active' : '')}>Kitchen</NavLink></li>
-
-            {isFinancialRole && (
-              <li><NavLink to="/expenses" className={({ isActive }) => (isActive ? 'active' : '')}>Expenses</NavLink></li>
+            {!isKitchen && (
+              <>
+                <li>
+                  <NavLink to="/inventory/ingredients" className={({ isActive }) => (isActive ? 'active' : '')}>
+                    Inventory
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/orders" className={({ isActive }) => (isActive ? 'active' : '')}>
+                    Orders
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/tables" className={({ isActive }) => (isActive ? 'active' : '')}>
+                    Tables
+                  </NavLink>
+                </li>
+              </>
             )}
 
-            <li><NavLink to="/attendance" className={({ isActive }) => (isActive ? 'active' : '')}>Attendance</NavLink></li>
+            <li>
+              <NavLink to="/kitchen" className={({ isActive }) => (isActive ? 'active' : '')}>
+                Kitchen
+              </NavLink>
+            </li>
+
+            {isFinancialRole && (
+              <li>
+                <NavLink to="/expenses" className={({ isActive }) => (isActive ? 'active' : '')}>
+                  Expenses
+                </NavLink>
+              </li>
+            )}
+
+            {!isKitchen && (
+              <li>
+                <NavLink to="/attendance" className={({ isActive }) => (isActive ? 'active' : '')}>
+                  Attendance
+                </NavLink>
+              </li>
+            )}
 
             {isOwnerOrManager && (
               <>
-                <li><NavLink to="/reports" className={({ isActive }) => (isActive ? 'active' : '')}>Reports</NavLink></li>
-                <li><NavLink to="/closing" className={({ isActive }) => (isActive ? 'active' : '')}>Closing</NavLink></li>
-                <li><NavLink to="/audit" className={({ isActive }) => (isActive ? 'active' : '')}>Audit</NavLink></li>
+                <li>
+                  <NavLink to="/reports" className={({ isActive }) => (isActive ? 'active' : '')}>
+                    Reports
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/closing" className={({ isActive }) => (isActive ? 'active' : '')}>
+                    Closing
+                  </NavLink>
+                </li>
+                <li>
+                  <NavLink to="/audit" className={({ isActive }) => (isActive ? 'active' : '')}>
+                    Audit
+                  </NavLink>
+                </li>
               </>
             )}
 
             {isOwner && (
-              <li><NavLink to="/profile/settings" className={({ isActive }) => (isActive ? 'active' : '')}>Settings</NavLink></li>
+              <li>
+                <NavLink to="/profile/settings" className={({ isActive }) => (isActive ? 'active' : '')}>
+                  Settings
+                </NavLink>
+              </li>
             )}
 
-            <li><NavLink to="/notifications" className={({ isActive }) => (isActive ? 'active' : '')}>Bell</NavLink></li>
+            <li>
+              <NavLink to="/notifications" className={({ isActive }) => (isActive ? 'active' : '')}>
+                Notifications
+              </NavLink>
+            </li>
           </ul>
         </nav>
 
         <div className="sidebar-footer">
-          <button onClick={handleLogout} type="button" className="btn btn-ghost">Log out</button>
+          <button onClick={handleLogout} type="button" className="btn btn-ghost">
+            Log out
+          </button>
         </div>
       </aside>
 
@@ -88,3 +171,5 @@ export const SidebarLayout: React.FC<{ user: UserProfile | null }> = ({ user }) 
     </div>
   );
 };
+
+export default SidebarLayout;

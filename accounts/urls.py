@@ -25,7 +25,6 @@ urlpatterns = [
     # Account / Restaurant Management APIs
     path("", include(router.urls)),
 
-
     # Legacy Code
     # path("api/token/", views.api_token, name="api_token"),
     # path("api/token/refresh/", views.api_token_refresh, name="api_token_refresh"),

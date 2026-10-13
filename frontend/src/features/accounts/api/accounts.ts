@@ -6,7 +6,6 @@ import type {
   PasswordResetConfirmResponse,
   RequestPasswordResetPayload,
   RequestPasswordResetResponse,
-  UpdateProfilePayload,
   UserProfile,
   RestaurantSettingsData,
   UpdateRestaurantSettingsPayload,
@@ -56,14 +55,18 @@ export const authApi = {
     });
     return response.data;
   },
-};
 
+  logout: async () => {
+    // If you have a backend logout endpoint, call it here, otherwise clear tokens locally
+    return Promise.resolve();
+  }
+};
 
 export const requestEmailChange = async (
   payload: RequestEmailChangePayload
 ): Promise<EmailChangeResponse> => {
   const response = await apiClient.post<EmailChangeResponse>(
-    '/accounts/email-change/',
+    '/api/v1/profile/email/',
     payload
   );
   return response.data;
@@ -73,7 +76,7 @@ export const confirmPasswordReset = async (
   payload: PasswordResetConfirmPayload
 ): Promise<PasswordResetConfirmResponse> => {
   const response = await apiClient.post<PasswordResetConfirmResponse>(
-    'api/v1/auth/password/reset/confirm/',
+    '/api/v1/auth/password/reset/confirm/',
     payload
   );
   return response.data;
@@ -83,18 +86,16 @@ export const requestPasswordReset = async (
   payload: RequestPasswordResetPayload
 ): Promise<RequestPasswordResetResponse> => {
   const response = await apiClient.post<RequestPasswordResetResponse>(
-    'api/v1/auth/password/reset/',
+    '/api/v1/auth/password/reset/',
     payload
   );
   return response.data;
 };
 
-
 export const changePassword = async (data: ChangePasswordParams) => {
-  const response = await apiClient.post('/api/v1/auth/password/reset/', data);
+  const response = await apiClient.post('/api/v1/auth/password/change/', data);
   return response.data;
 };
-
 
 export const getProfile = async (): Promise<UserProfile> => {
   const response = await apiClient.get<UserProfile>('/api/v1/auth/me/');
@@ -110,7 +111,6 @@ export const updateProfile = async (payload: {
   formData.append('first_name', payload.first_name);
   formData.append('last_name', payload.last_name);
 
-  // Only append avatar if a new File was selected by the user
   if (payload.avatar instanceof File) {
     formData.append('avatar', payload.avatar);
   }
@@ -124,25 +124,26 @@ export const updateProfile = async (payload: {
   return response.data;
 };
 
-//restaurant_settings
+// Restaurant Settings (managed via the RestaurantViewSet router or custom detail route)
 export const getRestaurantSettings = async (): Promise<RestaurantSettingsData> => {
-  const response = await apiClient.get<RestaurantSettingsData>('/accounts/restaurant-settings/');
-  return response.data;
+  // Assuming the router provides a list/detail for restaurants or a singleton endpoint
+  const response = await apiClient.get<RestaurantSettingsData>('/api/v1/restaurants/');
+  return Array.isArray(response.data) ? response.data[0] : response.data;
 };
 
 export const updateRestaurantSettings = async (
   payload: UpdateRestaurantSettingsPayload
 ): Promise<RestaurantSettingsData> => {
   const response = await apiClient.put<RestaurantSettingsData>(
-    '/accounts/restaurant-settings/',
+    '/api/v1/restaurants/1/',
     payload
   );
   return response.data;
 };
 
-//staff_edit.html
+// Staff Management (handled via DefaultRouter register(r"staff", ...))
 export const getStaffMember = async (id: string | number): Promise<StaffMember> => {
-  const response = await apiClient.get<StaffMember>(`/accounts/staff/${id}/`);
+  const response = await apiClient.get<StaffMember>(`/api/v1/staff/${id}/`);
   return response.data;
 };
 
@@ -151,27 +152,26 @@ export const updateStaffMember = async (
   payload: UpdateStaffPayload
 ): Promise<StaffMember> => {
   const response = await apiClient.put<StaffMember>(
-    `/accounts/staff/${id}/`,
+    `/api/v1/staff/${id}/`,
     payload
   );
   return response.data;
 };
 
-//staff_form.html
 export const createStaffMember = async (
   payload: CreateStaffPayload
 ): Promise<StaffMember> => {
   const response = await apiClient.post<StaffMember>(
-    '/accounts/staff/',
+    '/api/v1/staff/',
     payload
   );
   return response.data;
 };
 
-//staff_list.html
 export const getStaffList = async (): Promise<StaffMember[]> => {
-  const response = await apiClient.get<StaffMember[]>('/accounts/staff/');
-  return response.data;
+  const response = await apiClient.get<StaffMember[]>('/api/v1/staff/');
+  // Handle DRF paginated vs non-paginated responses gracefully
+  return Array.isArray(response.data) ? response.data : (response.data as any).results || [];
 };
 
 export const updateStaffRole = async (
@@ -179,7 +179,7 @@ export const updateStaffRole = async (
   role: StaffRole
 ): Promise<StaffMember> => {
   const response = await apiClient.patch<StaffMember>(
-    `/accounts/staff/${userId}/role/`,
+    `/api/v1/staff/${userId}/role/`,
     { role }
   );
   return response.data;
@@ -190,7 +190,7 @@ export const toggleStaffStatus = async (
   isActive: boolean
 ): Promise<StaffMember> => {
   const response = await apiClient.patch<StaffMember>(
-    `/accounts/staff/${userId}/status/`,
+    `/api/v1/staff/${userId}/status/`,
     { is_active: isActive }
   );
   return response.data;
@@ -200,5 +200,5 @@ export const resetStaffPassword = async (
   userId: string | number,
   payload: ResetStaffPasswordPayload
 ): Promise<void> => {
-  await apiClient.post(`/accounts/staff/${userId}/reset-password/`, payload);
+  await apiClient.post(`/api/v1/staff/${userId}/reset-password/`, payload);
 };

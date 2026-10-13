@@ -856,28 +856,56 @@ class StaffViewSet(viewsets.ModelViewSet):
             user_agent=self.request.META.get("HTTP_USER_AGENT", "")[:512],
         )
 
-    @action(detail=True, methods=["post"], url_path="reset-password")
-    def reset_password(self, request, pk=None):
+    @action(detail=True, methods=["patch"], url_path="role")
+    def role(self, request, pk=None):
         staff_user = self.get_object()
-        new_password = request.data.get("new_password")
-        if not new_password:
+        new_role = request.data.get("role")
+        if new_role not in dict(User.Role.choices):
             return Response(
-                {"new_password": ["This field is required."]},
+                {"role": ["Invalid role choice."]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        staff_user.set_password(new_password)
-        staff_user.must_change_password = True
-        staff_user.save(update_fields=["password", "must_change_password"])
+        old_role = staff_user.role
+        staff_user.role = new_role
+        staff_user.save(update_fields=["role"])
 
         StaffAudit.objects.create(
             restaurant=request.user.restaurant,
             actor=request.user,
             target=staff_user,
-            action=StaffAudit.Action.PASSWORD_RESET,
-            detail={"event": "Password reset by admin"},
+            action=StaffAudit.Action.ROLE_CHANGED,
+            detail={"old_role": old_role, "new_role": new_role},
             ip_address=get_client_ip(request),
             user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
         )
 
-        return Response({"message": f"Password for {staff_user.email} has been reset."})
+        serializer = self.get_serializer(staff_user)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=["patch"], url_path="status")
+    def status(self, request, pk=None):
+        staff_user = self.get_object()
+        is_active = request.data.get("is_active")
+        if not isinstance(is_active, bool):
+            return Response(
+                {"is_active": ["A boolean value is required."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        staff_user.is_active = is_active
+        staff_user.save(update_fields=["is_active"])
+
+        action_type = StaffAudit.Action.ACTIVATED if is_active else StaffAudit.Action.DEACTIVATED
+        StaffAudit.objects.create(
+            restaurant=request.user.restaurant,
+            actor=request.user,
+            target=staff_user,
+            action=action_type,
+            detail={"event": "Account activated" if is_active else "Account deactivated"},
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
+        )
+
+        serializer = self.get_serializer(staff_user)
+        return Response(serializer.data)
