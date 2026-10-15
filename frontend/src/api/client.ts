@@ -16,3 +16,28 @@ apiClient.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Response interceptor to automatically handle expired sessions
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const originalRequest = error.config;
+
+    // Check if error is 401 Unauthorized and we haven't already tried retrying this request
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+
+      // Clear all stored tokens
+      localStorage.removeItem('token');
+      localStorage.removeItem('access_token');
+
+      // Redirect to login if not already there
+      if (!window.location.pathname.includes('/login')) {
+        const currentPath = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `/login?expired=true&next=${currentPath}`;
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);

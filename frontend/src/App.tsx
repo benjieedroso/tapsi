@@ -7,6 +7,7 @@ import { ProtectedRoute } from './components/routes/ProtectedRoute';
 import { Dashboard } from './features/dashboard/pages/Dashboard';
 import { authApi } from './features/accounts/api/accounts';
 
+// Accounts Import
 import { Profile } from './features/accounts/pages/Profile';
 import { StaffList } from './features/accounts/pages/StaffList';
 import { StaffForm } from './features/accounts/pages/StaffForm';
@@ -17,6 +18,8 @@ import { MenuPage } from './features/menu/pages/MenuPage';
 import { PasswordReset } from './features/accounts/pages/PasswordReset';
 import { PasswordResetConfirm } from './features/accounts/pages/PasswordResetConfirm';
 import { PasswordResetDone } from './features/accounts/pages/PasswordResetDone';
+import { StaffSetPassword } from './features/accounts/pages/StaffSetPassword';
+
 
 // Orders & Tables Imports
 import { OrderList } from './features/orders/pages/OrderList';
@@ -118,6 +121,7 @@ export default function App() {
           path="/reset-password-confirm/:uid/:token" 
           element={<PasswordResetConfirm />} 
         />
+        <Route path="/set-password/:uid/:token/" element={<StaffSetPassword />} />
       
         {/* Auth Routes */}
         <Route path="/login" element={<Login onLoginSuccess={setUser} />} />
@@ -131,6 +135,7 @@ export default function App() {
             <Route path="/profile" element={<Profile />} />
             <Route path="/profile/settings" element={<RestaurantSettings />} />
             <Route path="/menu" element={<MenuPage />} />
+      
 
             {/* Orders & Kitchen Routes */}
             <Route path="/orders" element={<OrderList userRole={user?.role} />} />

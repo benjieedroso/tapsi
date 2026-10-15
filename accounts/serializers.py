@@ -1,7 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.core.mail import send_mail
+from django.conf import settings
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+
 
 from .models import Restaurant, User
 
@@ -153,10 +159,7 @@ class RequestEmailChangeSerializer(serializers.Serializer):
             raise serializers.ValidationError("This email address is already taken.")
         return normalized_email
 
-
 class StaffSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
-
     class Meta:
         model = User
         fields = [
@@ -169,7 +172,6 @@ class StaffSerializer(serializers.ModelSerializer):
             "phone",
             "avatar",
             "is_active",
-            "password",
             "date_joined",
         ]
         read_only_fields = ["id", "display_name", "date_joined"]
@@ -184,15 +186,34 @@ class StaffSerializer(serializers.ModelSerializer):
         return normalized_email
 
     def create(self, validated_data):
-        password = validated_data.pop("password", None)
         email = validated_data.pop("email")
+        restaurant = validated_data.get("restaurant")
         
+        # Create user with an unusable initial password until they set their own
         user = User.objects.create_user(
             email=email,
-            password=password,
+            password=None, 
+            must_change_password=True,
+            is_active=True,
             **validated_data
         )
-        if not password:
-            user.must_change_password = True
-            user.save(update_fields=["must_change_password"])
+        user.set_unusable_password()
+        user.save(update_fields=["password"])
+
+        # Generate secure token for setting the password
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+        setup_link = f"{frontend_url}/set-password/{uid}/{token}/"
+
+        # Send secure invitation email
+        send_mail(
+            subject="You're invited to join TAPSI",
+            message=f"Hello {user.first_name},\n\nYou have been added as staff for {restaurant.name if restaurant else 'your restaurant'}.\n\nPlease click the link below to set your password and activate your account:\n\n{setup_link}\n\nThis link will expire shortly.",
+            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "webmaster@localhost"),
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+
         return user

@@ -1,111 +1,66 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { employeesApi } from '../api/employees';
-import type { EmployeeListItem } from '../types/employees.types';
+import type { EmployeeDetail } from '../types/employees.types';
 
-interface EmployeeListProps {
-  userRole?: 'OWNER' | 'MANAGER' | 'CASHIER' | 'STAFF';
-}
-
-export const EmployeeList: React.FC<EmployeeListProps> = ({ userRole }) => {
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  const [employees, setEmployees] = useState<EmployeeListItem[]>([]);
+export const EmployeeList: React.FC = () => {
+  const [employees, setEmployees] = useState<EmployeeDetail[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
-  const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('q') || '');
-  const [searchInput, setSearchInput] = useState<string>(searchParams.get('q') || '');
-  const [processingId, setProcessingId] = useState<number | null>(null);
-
-  const fetchEmployees = useCallback(async () => {
+  const fetchEmployees = useCallback(async (query?: string) => {
     setLoading(true);
     try {
-      const params: { q?: string } = {};
-      const qParam = searchParams.get('q');
-      if (qParam) params.q = qParam;
-
-      const res = await employeesApi.getEmployeeList(params);
-      setEmployees(res.employees || []);
+      const data = await employeesApi.getEmployeeList({ q: query });
+      setEmployees(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load employees.');
     } finally {
       setLoading(false);
     }
-  }, [searchParams]);
+  }, []);
 
   useEffect(() => {
     fetchEmployees();
   }, [fetchEmployees]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setSearchQuery(searchInput);
-    if (searchInput) {
-      setSearchParams({ q: searchInput });
-    } else {
-      setSearchParams({});
-    }
+    fetchEmployees(searchQuery);
   };
-
-  const handleDelete = async (id: number, name: string) => {
-    if (!window.confirm(`Deactivate ${name}?`)) return;
-    setProcessingId(id);
-    try {
-      await employeesApi.deleteEmployee(id);
-      await fetchEmployees();
-    } catch (err: any) {
-      alert(err.response?.data?.detail || 'Failed to deactivate employee.');
-    } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const isOwnerOrManager = userRole === 'OWNER' || userRole === 'MANAGER';
-
-  if (loading && employees.length === 0) {
-    return <div style={{ padding: 'var(--space-4)' }}>Loading employees...</div>;
-  }
 
   return (
-    <>
-      <div className="page-heading">
+    <div style={{ padding: 'var(--space-6)' }}>
+      <div className="page-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-4)' }}>
         <div>
           <h1>Employees</h1>
           <p style={{ color: 'var(--gray-500)', fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-1)' }}>
             Staff records — salary is visible only to Owner/Manager (FR-121).
           </p>
         </div>
-        <Link className="btn btn-primary" to="/employees/create">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
+        <Link className="btn btn-primary" to="/employees/create" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14"/></svg>
           Add employee
         </Link>
       </div>
 
-      {error && <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div>}
-
-      <form
-        onSubmit={handleSearchSubmit}
-        style={{ marginBottom: 'var(--space-4)', display: 'flex', gap: 'var(--space-2)', maxWidth: '400px' }}
-      >
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: 'var(--space-3)', marginBottom: 'var(--space-5)' }}>
         <input
           type="text"
-          name="q"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          placeholder="Search by name..."
           className="input"
-          style={{ flex: 1 }}
+          placeholder="Search by name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          style={{ maxWidth: '320px' }}
         />
-        <button type="submit" className="btn btn-secondary btn-sm">
-          Search
-        </button>
+        <button type="submit" className="btn btn-secondary">Search</button>
       </form>
 
-      <div className="table-card">
+      {error && <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div>}
+
+      <div className="table-card" style={{ background: 'var(--bg-surface, #fff)', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
         <table>
           <thead>
             <tr>
@@ -119,62 +74,46 @@ export const EmployeeList: React.FC<EmployeeListProps> = ({ userRole }) => {
             </tr>
           </thead>
           <tbody>
-            {employees.length === 0 ? (
+            {loading ? (
               <tr>
-                <td colSpan={7} className="empty-state">
+                <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-5)' }}>Loading employees...</td>
+              </tr>
+            ) : employees.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="empty-state" style={{ textAlign: 'center', padding: 'var(--space-6)' }}>
                   <h3>No employees yet</h3>
-                  <p>Add staff records for attendance tracking.</p>
-                  <Link to="/employees/create" className="btn btn-primary" style={{ marginTop: 'var(--space-3)' }}>
-                    Add employee
-                  </Link>
+                  <p style={{ color: 'var(--gray-500)', marginBottom: 'var(--space-4)' }}>Add staff records for attendance tracking.</p>
+                  <Link to="/employees/create" className="btn btn-primary">Add employee</Link>
                 </td>
               </tr>
             ) : (
-              employees.map((employee: EmployeeListItem) => {
-                const isActive = employee.employment_status === 'ACTIVE';
-                return (
-                  <tr key={employee.id}>
-                    <td>
-                      <strong>{employee.full_name}</strong>
-                      {employee.nickname && <span style={{ color: 'var(--gray-400)' }}> ({employee.nickname})</span>}
-                    </td>
-                    <td>{employee.position || '—'}</td>
-                    <td>{employee.phone || '—'}</td>
-                    <td>
-                      {isActive ? (
-                        <span className="badge badge-success">Active</span>
-                      ) : (
-                        <span className="badge badge-warning">Inactive</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {isOwnerOrManager && employee.daily_rate != null ? `₱${employee.daily_rate.toFixed(2)}` : '—'}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      {isOwnerOrManager && employee.monthly_salary != null ? `₱${employee.monthly_salary.toFixed(2)}` : '—'}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <Link to={`/employees/${employee.id}/edit`} className="btn btn-ghost btn-sm">
-                        Edit
-                      </Link>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        style={{ color: 'var(--color-error)' }}
-                        onClick={() => handleDelete(employee.id, employee.full_name)}
-                        disabled={processingId === employee.id}
-                      >
-                        Deactivate
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
+              employees.map((emp) => (
+                <tr key={emp.id}>
+                  <td style={{ fontWeight: 600 }}>
+                    <Link to={`/employees/${emp.id}`} style={{ color: 'var(--tapsi-700, #047857)' }}>
+                      {emp.full_name}
+                    </Link>
+                    {emp.nickname && <span style={{ color: 'var(--gray-500)', fontWeight: 400, fontSize: 'var(--font-size-xs)', display: 'block' }}>"{emp.nickname}"</span>}
+                  </td>
+                  <td>{emp.position || '—'}</td>
+                  <td>{emp.phone || '—'}</td>
+                  <td>
+                    <span className={`badge ${emp.employment_status === 'active' ? 'badge-success' : 'badge-secondary'}`}>
+                      {emp.employment_status}
+                    </span>
+                  </td>
+                  <td style={{ textAlign: 'right' }}>{emp.daily_rate ? `₱${parseFloat(emp.daily_rate).toFixed(2)}` : '—'}</td>
+                  <td style={{ textAlign: 'right' }}>{emp.monthly_salary ? `₱${parseFloat(emp.monthly_salary).toFixed(2)}` : '—'}</td>
+                  <td style={{ textAlign: 'right' }}>
+                    <Link to={`/employees/${emp.id}/edit`} className="btn btn-ghost btn-sm">Edit</Link>
+                  </td>
+                </tr>
+              ))
             )}
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 };
 

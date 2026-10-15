@@ -49,7 +49,7 @@ export const StaffForm: React.FC = () => {
     try {
       await createStaffMember(formData);
       navigate('/accounts/staff', {
-        state: { message: `Staff member ${formData.email} added successfully.` },
+        state: { message: `Invitation email sent to ${formData.email}.` },
       });
     } catch (err: any) {
       const responseData = err.response?.data || {};

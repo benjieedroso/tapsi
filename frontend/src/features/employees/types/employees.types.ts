@@ -28,17 +28,40 @@ export interface AttendanceListResponse {
   month: string;
 }
 
-export interface EmployeeFormData {
-  user?: number | null;
+export interface EmployeeDetail {
+  id: number;
   full_name: string;
+  nickname?: string;
+  phone?: string;
+  address?: string;
+  emergency_contact?: string;
   position: string;
-  salary_type: 'MONTHLY' | 'DAILY' | 'HOURLY';
-  rate: number;
-  is_active?: boolean;
+  employment_status: string; // e.g. 'ACTIVE', 'INACTIVE'
+  date_hired?: string;
+  daily_rate?: string | null;
+  monthly_salary?: string | null;
+  user?: number | null;
+  user_username?: string | null;
 }
 
-export interface EmployeeDetail extends EmployeeFormData {
-  id: number;
+export interface EmployeeFormData {
+  full_name: string;
+  nickname: string;
+  phone: string;
+  address: string;
+  emergency_contact: string;
+  position: string;
+  employment_status: string;
+  date_hired: string;
+  daily_rate?: string | null;   // <-- Remove null
+  monthly_salary?: string | null;  // <-- Remove null
+}
+
+export interface EmployeeListResponse {
+  results?: EmployeeDetail[];
+  count?: number;
+  // Fallback if DRF pagination is disabled or custom
+  [key: string]: any;
 }
 
 export interface EmployeeListItem {
@@ -50,8 +73,4 @@ export interface EmployeeListItem {
   employment_status: string;
   daily_rate?: number | null;
   monthly_salary?: number | null;
-}
-
-export interface EmployeeListResponse {
-  employees: EmployeeListItem[];
 }

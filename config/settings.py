@@ -144,3 +144,4 @@ LOGIN_URL = "accounts:login"
 LOGIN_REDIRECT_URL = "dashboard"
 LOGOUT_REDIRECT_URL = "accounts:login"
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")

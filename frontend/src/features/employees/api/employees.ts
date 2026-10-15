@@ -22,26 +22,29 @@ export const employeesApi = {
   },
 
   getEmployeeDetail: async (id: number): Promise<EmployeeDetail> => {
-    const response = await apiClient.get(`/api/v1/employees/profiles/${id}/`);
+    const response = await apiClient.get(`/api/v1/employees/records/${id}/`);
     return response.data;
   },
 
   createEmployee: async (payload: EmployeeFormData): Promise<EmployeeDetail> => {
-    const response = await apiClient.post('/api/v1/employees/profiles/', payload);
+    const response = await apiClient.post('/api/v1/employees/records/', payload);
     return response.data;
   },
 
   updateEmployee: async (id: number, payload: EmployeeFormData): Promise<EmployeeDetail> => {
-    const response = await apiClient.put(`/api/v1/employees/profiles/${id}/`, payload);
+    const response = await apiClient.put(`/api/v1/employees/records/${id}/`, payload);
     return response.data;
   },
 
-  getEmployeeList: async (params?: { q?: string }): Promise<EmployeeListResponse> => {
-    const response = await apiClient.get('/api/v1/employees/profiles/', { params });
-    return response.data;
+  getEmployeeList: async (params?: { q?: string }): Promise<EmployeeDetail[]> => {
+    const response = await apiClient.get('/api/v1/employees/records/', { params });
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.results)) return data.results;
+    return [];
   },
 
   deleteEmployee: async (id: number): Promise<void> => {
-    await apiClient.delete(`/api/v1/employees/profiles/${id}/`);
+    await apiClient.delete(`/api/v1/employees/records/${id}/`);
   },
 };

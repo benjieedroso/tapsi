@@ -909,3 +909,60 @@ class StaffViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(staff_user)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="reset-password")
+    def reset_password(self, request, pk=None):
+        staff_user = self.get_object()
+        new_password = request.data.get("new_password")
+        if not new_password:
+            return Response(
+                {"new_password": ["This field is required."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        staff_user.set_password(new_password)
+        staff_user.must_change_password = True
+        staff_user.save(update_fields=["password", "must_change_password"])
+
+        StaffAudit.objects.create(
+            restaurant=request.user.restaurant,
+            actor=request.user,
+            target=staff_user,
+            action=StaffAudit.Action.PASSWORD_RESET,
+            detail={"event": "Password reset by admin"},
+            ip_address=get_client_ip(request),
+            user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
+        )
+
+        return Response({"message": f"Password for {staff_user.email} has been reset."})
+
+class StaffSetPasswordView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                uid = force_str(urlsafe_base64_decode(serializer.validated_data["uid"]))
+                user = User.objects.get(pk=uid, is_active=True)
+            except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+                return Response(
+                    {"detail": "Invalid setup link or user does not exist."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if not default_token_generator.check_token(user, serializer.validated_data["token"]):
+                return Response(
+                    {"detail": "Setup token is invalid or has expired."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            user.set_password(serializer.validated_data["new_password"])
+            user.must_change_password = False
+            user.save(update_fields=["password", "must_change_password"])
+
+            return Response(
+                {"message": "Password has been successfully set. You can now log in."},
+                status=status.HTTP_200_OK,
+            )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -24,6 +24,8 @@ urlpatterns = [
     path("profile/email/", views.RequestEmailChangeView.as_view(), name="request_email_change"),
     # Account / Restaurant Management APIs
     path("", include(router.urls)),
+    # Email Sent Account
+    path("auth/staff/set-password/", views.StaffSetPasswordView.as_view(), name="staff_set_password"),
 
     # Legacy Code
     # path("api/token/", views.api_token, name="api_token"),

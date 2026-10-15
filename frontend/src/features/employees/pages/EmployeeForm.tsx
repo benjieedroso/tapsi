@@ -1,55 +1,76 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { employeesApi } from '../api/employees';
+import type { EmployeeFormData } from '../types/employees.types';
 
 export const EmployeeForm: React.FC = () => {
-  const navigate = useNavigate();
-  const { id } = useParams<{ id?: string }>();
+  const { id } = useParams<{ id: string }>();
   const isEdit = Boolean(id);
-  const action = isEdit ? 'Edit' : 'Add';
+  const navigate = useNavigate();
 
-  const [fullName, setFullName] = useState<string>('');
-  const [position, setPosition] = useState<string>('');
-  const [salaryType, setSalaryType] = useState<'MONTHLY' | 'DAILY' | 'HOURLY'>('MONTHLY');
-  const [rate, setRate] = useState<number | ''>('');
-  const [isActive, setIsActive] = useState<boolean>(true);
+  const [formData, setFormData] = useState<EmployeeFormData>({
+    full_name: '',
+    nickname: '',
+    phone: '',
+    address: '',
+    emergency_contact: '',
+    position: '',
+    employment_status: 'ACTIVE',
+    date_hired: new Date().toISOString().split('T')[0],
+    daily_rate: '',
+    monthly_salary: '',
+  });
 
   const [loading, setLoading] = useState<boolean>(isEdit);
   const [submitting, setSubmitting] = useState<boolean>(false);
-  const [nonFieldErrors, setNonFieldErrors] = useState<string[]>([]);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
-    const fetchEmployee = async () => {
-      try {
-        const data = await employeesApi.getEmployeeDetail(Number(id));
-        setFullName(data.full_name || '');
-        setPosition(data.position || '');
-        setSalaryType(data.salary_type || 'MONTHLY');
-        setRate(data.rate ?? '');
-        setIsActive(data.is_active ?? true);
-      } catch (err: any) {
-        setNonFieldErrors([err.response?.data?.detail || 'Failed to load employee details.']);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchEmployee();
-  }, [id]);
+    if (isEdit && id) {
+      employeesApi.getEmployeeDetail(Number(id))
+        .then((res) => {
+          setFormData({
+            full_name: res.full_name || '',
+            nickname: res.nickname || '',
+            phone: res.phone || '',
+            address: res.address || '',
+            emergency_contact: res.emergency_contact || '',
+            position: res.position || '',
+            employment_status: (res.employment_status || 'ACTIVE').toUpperCase(),
+            date_hired: res.date_hired || '',
+            daily_rate: res.daily_rate !== null && res.daily_rate !== undefined ? String(res.daily_rate) : '',
+            monthly_salary: res.monthly_salary !== null && res.monthly_salary !== undefined ? String(res.monthly_salary) : '',
+          });
+        })
+        .catch(() => setError('Failed to load employee details.'))
+        .finally(() => setLoading(false));
+    }
+  }, [id, isEdit]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value, type } = e.target;
+    let val: any = value;
+    if (type === 'checkbox') {
+      val = (e.target as HTMLInputElement).checked ? 'ACTIVE' : 'INACTIVE';
+    }
+    setFormData((prev) => ({ ...prev, [name]: val }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.full_name.trim() || !formData.position.trim()) {
+      alert('Full Name and Position are required.');
+      return;
+    }
+
     setSubmitting(true);
-    setNonFieldErrors([]);
-    setFieldErrors({});
+    setError(null);
 
     const payload = {
-      full_name: fullName,
-      position,
-      salary_type: salaryType,
-      rate: Number(rate),
-      is_active: isActive,
+      ...formData,
+      employment_status: (formData.employment_status || 'ACTIVE').toUpperCase(),
+      daily_rate: formData.daily_rate === '' ? null : formData.daily_rate,
+      monthly_salary: formData.monthly_salary === '' ? null : formData.monthly_salary,
     };
 
     try {
@@ -60,144 +81,99 @@ export const EmployeeForm: React.FC = () => {
       }
       navigate('/employees');
     } catch (err: any) {
-      if (err.response?.data) {
-        const data = err.response.data;
-        if (data.non_field_errors) {
-          setNonFieldErrors(data.non_field_errors);
-        }
-        setFieldErrors(data);
-      } else {
-        setNonFieldErrors(['An unexpected error occurred. Please try again.']);
-      }
+      console.error("Employee creation failed:", err.response?.data);
+      setError(JSON.stringify(err.response?.data) || 'Failed to save employee.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (loading) {
-    return <div style={{ padding: 'var(--space-4)' }}>Loading employee data...</div>;
-  }
+  if (loading) return <div style={{ padding: 'var(--space-6)' }}>Loading employee form...</div>;
 
   return (
-    <>
-      <div className="page-heading">
-        <div>
-          <h1>{action} Employee</h1>
-          <p style={{ color: 'var(--gray-500)', fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-1)' }}>
-            Salary fields are visible to Owner/Manager only (FR-121).
-          </p>
-        </div>
+    <div style={{ padding: 'var(--space-6)', maxWidth: '640px', margin: '0 auto' }}>
+      <div className="page-heading" style={{ marginBottom: 'var(--space-4)' }}>
+        <h1>{isEdit ? 'Edit Employee' : 'Add Employee'}</h1>
+        <p style={{ color: 'var(--gray-500)', fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-1)' }}>
+          Salary fields are visible to Owner/Manager only (FR-121).
+        </p>
       </div>
 
-      <div className="form-card" style={{ maxWidth: '560px' }}>
+      <div className="form-card" style={{ background: 'var(--bg-surface, #fff)', padding: 'var(--space-6)', borderRadius: '8px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        {error && <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div>}
+
         <form onSubmit={handleSubmit} noValidate>
-          {nonFieldErrors.length > 0 && (
-            <ul className="errorlist">
-              {nonFieldErrors.map((err, idx) => (
-                <li key={idx}>{err}</li>
-              ))}
-            </ul>
-          )}
-
-          <div className="field">
-            <label htmlFor="id_full_name">Full Name</label>
-            <input
-              type="text"
-              id="id_full_name"
-              className="input"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-            />
-            {fieldErrors.full_name && (
-              <ul className="errorlist">
-                <li>{fieldErrors.full_name}</li>
-              </ul>
-            )}
+          <div className="field" style={{ marginBottom: 'var(--space-3)' }}>
+            <label style={{ display: 'block', fontWeight: 500, marginBottom: 'var(--space-1)' }}>Full Name</label>
+            <input type="text" name="full_name" className="input" value={formData.full_name} onChange={handleChange} required placeholder="Juan Dela Cruz" />
           </div>
 
-          <div className="field">
-            <label htmlFor="id_position">Position</label>
-            <input
-              type="text"
-              id="id_position"
-              className="input"
-              value={position}
-              onChange={(e) => setPosition(e.target.value)}
-              required
-            />
-            {fieldErrors.position && (
-              <ul className="errorlist">
-                <li>{fieldErrors.position}</li>
-              </ul>
-            )}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+            <div className="field">
+              <label style={{ display: 'block', fontWeight: 500, marginBottom: 'var(--space-1)' }}>Nickname</label>
+              <input type="text" name="nickname" className="input" value={formData.nickname} onChange={handleChange} placeholder="Juan" />
+            </div>
+            <div className="field">
+              <label style={{ display: 'block', fontWeight: 500, marginBottom: 'var(--space-1)' }}>Phone Number</label>
+              <input type="text" name="phone" className="input" value={formData.phone} onChange={handleChange} placeholder="09123456789" />
+            </div>
           </div>
 
-          <div className="field">
-            <label htmlFor="id_salary_type">Salary Type</label>
-            <select
-              id="id_salary_type"
-              className="input"
-              value={salaryType}
-              onChange={(e) => setSalaryType(e.target.value as any)}
-              required
-            >
-              <option value="MONTHLY">Monthly</option>
-              <option value="DAILY">Daily</option>
-              <option value="HOURLY">Hourly</option>
-            </select>
-            {fieldErrors.salary_type && (
-              <ul className="errorlist">
-                <li>{fieldErrors.salary_type}</li>
-              </ul>
-            )}
+          <div className="field" style={{ marginBottom: 'var(--space-3)' }}>
+            <label style={{ display: 'block', fontWeight: 500, marginBottom: 'var(--space-1)' }}>Position</label>
+            <input type="text" name="position" className="input" value={formData.position} onChange={handleChange} required placeholder="Kitchen Staff / Cashier" />
           </div>
 
-          <div className="field">
-            <label htmlFor="id_rate">Rate (₱)</label>
-            <input
-              type="number"
-              id="id_rate"
-              className="input"
-              value={rate}
-              onChange={(e) => setRate(e.target.value === '' ? '' : Number(e.target.value))}
-              min={0}
-              step="0.01"
-              required
-            />
-            {fieldErrors.rate && (
-              <ul className="errorlist">
-                <li>{fieldErrors.rate}</li>
-              </ul>
-            )}
+          <div className="field" style={{ marginBottom: 'var(--space-3)' }}>
+            <label style={{ display: 'block', fontWeight: 500, marginBottom: 'var(--space-1)' }}>Address</label>
+            <textarea name="address" className="input" rows={2} value={formData.address} onChange={handleChange} placeholder="Home address..." />
           </div>
 
-          <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+            <div className="field">
+              <label style={{ display: 'block', fontWeight: 500, marginBottom: 'var(--space-1)' }}>Emergency Contact</label>
+              <input type="text" name="emergency_contact" className="input" value={formData.emergency_contact} onChange={handleChange} placeholder="Name & Number" />
+            </div>
+            <div className="field">
+              <label style={{ display: 'block', fontWeight: 500, marginBottom: 'var(--space-1)' }}>Date Hired</label>
+              <input type="date" name="date_hired" className="input" value={formData.date_hired} onChange={handleChange} />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)', marginBottom: 'var(--space-3)' }}>
+            <div className="field">
+              <label style={{ display: 'block', fontWeight: 500, marginBottom: 'var(--space-1)' }}>Daily Rate (₱)</label>
+              <input type="number" step="any" name="daily_rate" className="input" value={formData.daily_rate ?? ''} onChange={handleChange} placeholder="0.00" />
+            </div>
+            <div className="field">
+              <label style={{ display: 'block', fontWeight: 500, marginBottom: 'var(--space-1)' }}>Monthly Salary (₱)</label>
+              <input type="number" step="any" name="monthly_salary" className="input" value={formData.monthly_salary ?? ''} onChange={handleChange} placeholder="0.00" />
+            </div>
+          </div>
+
+          <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 'var(--space-4) 0' }}>
             <input
               type="checkbox"
-              id="id_is_active"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
+              id="employment_status"
+              name="employment_status"
+              checked={formData.employment_status === 'ACTIVE'}
+              onChange={(e) => setFormData((prev) => ({
+                ...prev,
+                employment_status: e.target.checked ? 'ACTIVE' : 'INACTIVE',
+              }))}
             />
-            <label htmlFor="id_is_active" style={{ margin: 0, cursor: 'pointer' }}>Active Employee</label>
-            {fieldErrors.is_active && (
-              <ul className="errorlist">
-                <li>{fieldErrors.is_active}</li>
-              </ul>
-            )}
+            <label htmlFor="employment_status" style={{ fontWeight: 500, cursor: 'pointer' }}>Active Employee</label>
           </div>
 
           <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? 'Saving...' : `${action} Employee`}
+              {submitting ? 'Saving...' : (isEdit ? 'Update Employee' : 'Add Employee')}
             </button>
-            <Link to="/employees" className="btn btn-secondary">
-              Cancel
-            </Link>
+            <Link to="/employees" className="btn btn-secondary">Cancel</Link>
           </div>
         </form>
       </div>
-    </>
+    </div>
   );
 };
 
