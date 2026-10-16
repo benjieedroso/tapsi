@@ -23,11 +23,12 @@ urlpatterns = [
     path("api/v1/inventory/", include("inventory.urls")),
     path("api/v1/expenses/", include("expenses.urls")),
     path("api/v1/employees/", include("employees.urls")),
-    path("api/v1/suppliers/", include("suppliers.urls")),
     path("api/v1/closing/", include("closing.urls")),
     path("api/v1/reports/", include("reports.urls")),
     path("api/v1/notifications/", include("notifications.urls")),
     path("api/v1/audit-logs/", include("audit_logs.urls")),
+    path("api/v1/recipes/", include("recipes.urls")),
+    path("api/v1/suppliers/", include("suppliers.urls")),
 
     # Legacy HTML / Monolith Routes (Commented out for SPA decoupling)
     # path("", views.dashboard, name="dashboard"),

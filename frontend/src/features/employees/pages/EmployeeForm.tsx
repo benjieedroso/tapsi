@@ -151,18 +151,20 @@ export const EmployeeForm: React.FC = () => {
             </div>
           </div>
 
-          <div className="field" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', margin: 'var(--space-4) 0' }}>
+          {/* Fixed compact alignment for checkbox and label */}
+          <div className="field" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: '10px', margin: 'var(--space-4) 0' }}>
             <input
               type="checkbox"
               id="employment_status"
               name="employment_status"
+              style={{ width: '18px', height: '18px', cursor: 'pointer', margin: 0 }}
               checked={formData.employment_status === 'ACTIVE'}
               onChange={(e) => setFormData((prev) => ({
                 ...prev,
                 employment_status: e.target.checked ? 'ACTIVE' : 'INACTIVE',
               }))}
             />
-            <label htmlFor="employment_status" style={{ fontWeight: 500, cursor: 'pointer' }}>Active Employee</label>
+            <label htmlFor="employment_status" style={{ fontWeight: 500, cursor: 'pointer', margin: 0, whiteSpace: 'nowrap', }}>Active Employee</label>
           </div>
 
           <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>

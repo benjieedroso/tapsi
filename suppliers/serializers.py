@@ -34,9 +34,8 @@ class SupplierSerializer(serializers.ModelSerializer):
         ]
 
     def create(self, validated_data):
-        request = self.context.get("request")
-        restaurant_id = getattr(request.user, "restaurant_id", None)
-        return Supplier.objects.create(restaurant_id=restaurant_id, **validated_data)
+        # restaurant_id is safely passed via perform_create in the ViewSet
+        return Supplier.objects.create(**validated_data)
 
 
 class PurchaseOrderItemSerializer(serializers.ModelSerializer):
@@ -100,14 +99,12 @@ class PurchaseOrderSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         items_data = validated_data.pop("items", [])
         request = self.context.get("request")
-        restaurant_id = getattr(request.user, "restaurant_id", None)
         user = request.user if request and request.user.is_authenticated else None
 
-        po = PurchaseOrder.objects.create(
-            restaurant_id=restaurant_id,
-            placed_by=user,
-            **validated_data
-        )
+        if user and not validated_data.get("placed_by"):
+            validated_data["placed_by"] = user
+
+        po = PurchaseOrder.objects.create(**validated_data)
 
         for item_data in items_data:
             PurchaseOrderItem.objects.create(purchase_order=po, **item_data)
@@ -149,6 +146,7 @@ class SupplierPaymentSerializer(serializers.ModelSerializer):
             "method",
             "reference_no",
             "notes",
+            "payment_terms",
             "recorded_by",
             "recorded_by_name",
             "created_at",
@@ -157,11 +155,9 @@ class SupplierPaymentSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         request = self.context.get("request")
-        restaurant_id = getattr(request.user, "restaurant_id", None)
         user = request.user if request and request.user.is_authenticated else None
 
-        return SupplierPayment.objects.create(
-            restaurant_id=restaurant_id,
-            recorded_by=user,
-            **validated_data
-        )
+        if user and not validated_data.get("recorded_by"):
+            validated_data["recorded_by"] = user
+
+        return SupplierPayment.objects.create(**validated_data)

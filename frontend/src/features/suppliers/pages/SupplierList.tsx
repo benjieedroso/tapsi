@@ -16,22 +16,20 @@ export const SupplierList: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<SupplierListItem | null>(null);
   const [deleting, setDeleting] = useState<boolean>(false);
 
-  const fetchSuppliers = useCallback(async () => {
+  const fetchSuppliers = useCallback(async (query?: string) => {
     setLoading(true);
     try {
-      const params: { q?: string } = {};
-      const qParam = searchParams.get('q');
-      if (qParam) params.q = qParam;
-
-      const res = await suppliersApi.getSupplierList(params);
-      setSuppliers(res.suppliers || []);
+      const data = await suppliersApi.getSupplierList(query ? { search: query } : undefined);
+      // Fallback guarantee: ensures it's always an array
+      setSuppliers(Array.isArray(data) ? data : []);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load suppliers.');
+      setSuppliers([]);
     } finally {
       setLoading(false);
     }
-  }, [searchParams]);
+  }, []);
 
   useEffect(() => {
     fetchSuppliers();
@@ -143,7 +141,10 @@ export const SupplierList: React.FC = () => {
                   </td>
                   <td>{supplier.contact_person || '—'}</td>
                   <td>{supplier.phone || '—'}</td>
-                  <td>{supplier.payment_terms_display}</td>
+                  <td>{/* Format or display the choice value cleanly */}
+                    <span className="badge badge-neutral">
+                      {supplier.payment_terms === 'COD' ? 'COD' : supplier.payment_terms}
+                    </span></td>
                   <td>
                     {supplier.is_active ? (
                       <span className="badge badge-success">Active</span>

@@ -57,9 +57,12 @@ export const suppliersApi = {
     return response.data;
   },
 
-  getSupplierList: async (params?: { q?: string }): Promise<SupplierListResponse> => {
+  getSupplierList: async (params?: { search?: string; is_active?: boolean }): Promise<SupplierDetailData[]> => {
     const response = await apiClient.get('/api/v1/suppliers/', { params });
-    return response.data;
+    const data = response.data;
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.results)) return data.results;
+    return [];
   },
 
   deleteSupplier: async (id: number): Promise<void> => {

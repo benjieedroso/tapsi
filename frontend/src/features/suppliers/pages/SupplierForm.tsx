@@ -13,7 +13,8 @@ export const SupplierForm: React.FC = () => {
   const [phone, setPhone] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [address, setAddress] = useState<string>('');
-  const [paymentTerms, setPaymentTerms] = useState<'NET_15' | 'NET_30' | 'NET_60' | 'COD'>('COD');
+  // Updated state type to match backend choice values
+  const [paymentTerms, setPaymentTerms] = useState<'7D' | '15D' | '30D' | 'COD'>('COD');
   const [isActive, setIsActive] = useState<boolean>(true);
 
   const [loading, setLoading] = useState<boolean>(isEdit);
@@ -196,9 +197,9 @@ export const SupplierForm: React.FC = () => {
               required
             >
               <option value="COD">Cash on Delivery (COD)</option>
-              <option value="NET_15">Net 15 Days</option>
-              <option value="NET_30">Net 30 Days</option>
-              <option value="NET_60">Net 60 Days</option>
+              <option value="7D">7 Days</option>
+              <option value="15D">15 Days</option>
+              <option value="30D">30 Days</option>
             </select>
             {fieldErrors.payment_terms && (
               <ul className="errorlist">

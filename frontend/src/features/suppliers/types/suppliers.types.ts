@@ -72,7 +72,7 @@ export interface SupplierPOHistoryItem {
 export interface SupplierDetailData {
   id: number;
   name: string;
-  payment_terms_display: string;
+  payment_terms: string;
   phone?: string | null;
   is_active: boolean;
   outstanding_balance: number;
@@ -91,7 +91,7 @@ export interface SupplierFormData {
   phone?: string;
   email?: string;
   address?: string;
-  payment_terms: 'NET_15' | 'NET_30' | 'NET_60' | 'COD';
+  payment_terms: 'COD' | '7D' | '15D' | '30D';
   is_active?: boolean;
 }
 
@@ -104,7 +104,7 @@ export interface SupplierListItem {
   name: string;
   contact_person?: string | null;
   phone?: string | null;
-  payment_terms_display: string;
+  payment_terms: string;
   is_active: boolean;
 }
 

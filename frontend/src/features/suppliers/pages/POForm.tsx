@@ -102,7 +102,7 @@ export const POForm: React.FC = () => {
               required
             >
               <option value="">---------</option>
-              {meta?.suppliers.map((s: SupplierOption) => (
+              {(meta?.suppliers || []).map((s: SupplierOption) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
                 </option>
@@ -146,7 +146,7 @@ export const POForm: React.FC = () => {
                 required
               >
                 <option value="">---------</option>
-                {meta?.ingredients.map((ing: IngredientOption) => (
+                {(meta?.ingredients || []).map((ing: IngredientOption) => (
                   <option key={ing.id} value={ing.id}>
                     {ing.name}
                   </option>

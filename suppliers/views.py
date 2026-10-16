@@ -301,7 +301,9 @@ class SupplierViewSet(TenantAwareViewSet):
 
     def get_queryset(self):
         rid = self.get_restaurant_id()
-        queryset = Supplier.objects.filter(restaurant_id=rid, is_deleted=False)
+        queryset = Supplier.objects.filter(
+            restaurant_id=rid, is_deleted=False
+        ).prefetch_related("purchase_orders__items", "payments")
 
         is_active = self.request.query_params.get("is_active")
         if is_active is not None:
@@ -332,6 +334,18 @@ class PurchaseOrderViewSet(TenantAwareViewSet):
             queryset = queryset.filter(status=po_status)
 
         return queryset
+
+    @action(detail=False, methods=["get"], url_path="create/meta")
+    def create_meta(self, request):
+        """Provides metadata (active suppliers, etc.) for the PO creation form."""
+        rid = self.get_restaurant_id()
+        active_suppliers = Supplier.objects.filter(
+            restaurant_id=rid, is_active=True, is_deleted=False
+        )
+        
+        return Response({
+            "suppliers": [{"id": s.id, "name": s.name, "payment_terms": s.payment_terms} for s in active_suppliers],
+        })
 
     @action(detail=True, methods=["patch"], url_path="update-status")
     def update_status(self, request, pk=None):
@@ -376,7 +390,7 @@ class PurchaseOrderViewSet(TenantAwareViewSet):
         if total_received >= total_ordered:
             po.status = PurchaseOrder.Status.RECEIVED
         elif total_received > 0:
-            po.status = PurchaseOrder.Status.PARTIALLY_RECEIVED
+            po.status = PurchaseOrder.Status.PARTIALES_RECEIVED if hasattr(PurchaseOrder.Status, 'PARTIAL_RECEIVED') else PurchaseOrder.Status.PARTIALLY_RECEIVED
 
         po.save(update_fields=["status", "updated_at"])
         return Response(self.get_serializer(po).data)

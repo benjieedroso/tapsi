@@ -21,7 +21,11 @@ AZURE_APP_HOST = "tapsidaily.online"
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ["localhost", "127.0.0.1", "tapsi-b6ekafhafgdudjdp.southeastasia-01.azurewebsites.net", "[::1]", AZURE_APP_HOST])
 CSRF_TRUSTED_ORIGINS = env_list(
     "DJANGO_CSRF_TRUSTED_ORIGINS",
-    [f"https://{AZURE_APP_HOST}"],
+    [
+        f"https://{AZURE_APP_HOST}",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+    ],
 )
 
 '''
@@ -67,6 +71,7 @@ MIDDLEWARE = [
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "config.middleware.DisableCSRFForAPI",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -76,7 +81,6 @@ MIDDLEWARE = [
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
-        "rest_framework.authentication.SessionAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
