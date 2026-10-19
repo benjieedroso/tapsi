@@ -337,14 +337,19 @@ class PurchaseOrderViewSet(TenantAwareViewSet):
 
     @action(detail=False, methods=["get"], url_path="create/meta")
     def create_meta(self, request):
-        """Provides metadata (active suppliers, etc.) for the PO creation form."""
+        """Provides metadata (active suppliers, ingredients, etc.) for the PO creation form."""
         rid = self.get_restaurant_id()
         active_suppliers = Supplier.objects.filter(
             restaurant_id=rid, is_active=True, is_deleted=False
         )
         
+        # Import your Ingredient model (adjust app name if needed, e.g., inventory.models)
+        from inventory.models import Ingredient
+        active_ingredients = Ingredient.objects.filter(restaurant_id=rid)
+
         return Response({
             "suppliers": [{"id": s.id, "name": s.name, "payment_terms": s.payment_terms} for s in active_suppliers],
+            "ingredients": [{"id": i.id, "name": i.name, "unit_of_measure": getattr(i, "unit_of_measure", "")} for i in active_ingredients],
         })
 
     @action(detail=True, methods=["patch"], url_path="update-status")
@@ -363,25 +368,46 @@ class PurchaseOrderViewSet(TenantAwareViewSet):
         po.save(update_fields=["status", "updated_at"])
         return Response(self.get_serializer(po).data)
 
-    @action(detail=True, methods=["post"], url_path="receive-items")
+    @action(detail=True, methods=["post"], url_path="receive")
     def receive_items(self, request, pk=None):
         """FR-065: Record partial or full received quantities per line item."""
         po = self.get_object()
-        receipts = request.data.get("items", [])  # Expects list of {"item_id": int, "qty_received": float}
+        data = request.data
+        
+        # DEBUG: Print what the backend is receiving
+        print("RECEIVED PAYLOAD:", data)
+
+        receipts = []
+        if isinstance(data, dict):
+            if "items" in data:
+                receipts = data["items"]
+            else:
+                receipts = [{"item_id": k, "qty_received": v} for k, v in data.items()]
+        elif isinstance(data, list):
+            receipts = data
 
         if not receipts:
+            print("VALIDATION ERROR: No receipts found in payload.")
             raise ValidationError({"items": "Receipt items payload required."})
 
         for receipt in receipts:
-            item_id = receipt.get("item_id")
-            received_qty = receipt.get("qty_received", 0)
+            if isinstance(receipt, dict):
+                item_id = receipt.get("item_id") or receipt.get("id")
+                received_qty = receipt.get("qty_received", 0)
+            else:
+                continue
+
+            if not item_id:
+                continue
 
             try:
                 line = po.items.get(id=item_id)
                 line.qty_received = received_qty
                 line.save()
-            except po.items.model.DoesNotExist:
-                continue
+            except Exception as e:
+                # DEBUG: Print if line.save() throws a ValidationError (like exceeding ordered qty)
+                print("LINE SAVE ERROR:", str(e))
+                raise ValidationError({"detail": str(e)})
 
         # Recalculate status automatically based on line quantities
         total_ordered = sum(item.qty_ordered for item in po.items.all())
@@ -390,8 +416,32 @@ class PurchaseOrderViewSet(TenantAwareViewSet):
         if total_received >= total_ordered:
             po.status = PurchaseOrder.Status.RECEIVED
         elif total_received > 0:
-            po.status = PurchaseOrder.Status.PARTIALES_RECEIVED if hasattr(PurchaseOrder.Status, 'PARTIAL_RECEIVED') else PurchaseOrder.Status.PARTIALLY_RECEIVED
+            po.status = PurchaseOrder.Status.PARTIALLY_RECEIVED
 
+        po.save(update_fields=["status", "updated_at"])
+        return Response(self.get_serializer(po).data)
+
+    @action(detail=True, methods=["post"], url_path="place")
+    def place(self, request, pk=None):
+        """Transition status from DRAFT to ORDERED and assign PO number."""
+        po = self.get_object()
+        
+        if po.status != PurchaseOrder.Status.DRAFT:
+            raise ValidationError({"status": "Only draft purchase orders can be placed."})
+
+        po.status = PurchaseOrder.Status.ORDERED
+        po.save(update_fields=["status", "updated_at"])
+        return Response(self.get_serializer(po).data)
+
+    @action(detail=True, methods=["post"], url_path="cancel")
+    def cancel(self, request, pk=None):
+        """Transition status to CANCELLED."""
+        po = self.get_object()
+        
+        if po.status == PurchaseOrder.Status.RECEIVED:
+            raise ValidationError({"status": "Cannot cancel a fully received purchase order."})
+
+        po.status = PurchaseOrder.Status.CANCELLED
         po.save(update_fields=["status", "updated_at"])
         return Response(self.get_serializer(po).data)
 

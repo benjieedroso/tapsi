@@ -32,7 +32,7 @@ export const suppliersApi = {
     return response.data;
   },
 
-  receivePO: async (id: number, payload: Record<string, number>): Promise<any> => {
+  receivePO: async (id: number, payload: Record<string, number> | { items: Array<{ item_id: number; qty_received: number }> }): Promise<any> => {
     const response = await apiClient.post(`/api/v1/suppliers/purchase-orders/${id}/receive/`, payload);
     return response.data;
   },

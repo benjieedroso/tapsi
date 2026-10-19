@@ -142,9 +142,9 @@ export const PODetail: React.FC = () => {
                   <td style={{ textAlign: 'right' }}>{item.qty_ordered}</td>
                   <td style={{ textAlign: 'right' }}>{item.qty_received}</td>
                   <td style={{ textAlign: 'right' }}>{item.outstanding_qty}</td>
-                  <td style={{ textAlign: 'right' }}>₱{(item.unit_cost ?? 0).toFixed(2)}</td>
-                  <td style={{ textAlign: 'right' }}>₱{(item.line_total ?? 0).toFixed(2)}</td>
-                  <td style={{ textAlign: 'right' }}>{(item.qty_ordered ?? 0).toFixed(2)}</td>
+                  <td style={{ textAlign: 'right' }}>₱{Number(item.unit_cost ?? 0).toFixed(2)}</td>
+                  <td style={{ textAlign: 'right' }}>₱{Number(item.line_total ?? 0).toFixed(2)}</td>
+                  <td style={{ textAlign: 'right' }}>{Number(item.qty_ordered ?? 0).toFixed(2)}</td>
                 </tr>
               ))
             )}

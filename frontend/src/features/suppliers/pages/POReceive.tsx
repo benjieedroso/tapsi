@@ -46,21 +46,22 @@ export const POReceive: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id) return;
+    if (!id || !po || !po.items) return;
 
     setSubmitting(true);
     setError(null);
 
-    // Build payload matching backend expectation (e.g. { item_id: qty })
-    const payload: Record<string, number> = {};
-    Object.entries(receivedValues).forEach(([itemId, qty]) => {
-      if (qty !== '') {
-        payload[itemId] = Number(qty);
-      }
+    const itemsPayload = po.items.map((item: POItem) => {
+      const val = receivedValues[item.id];
+      const qty = val !== '' && val !== undefined ? Number(val) : Number(item.outstanding_qty ?? 0);
+      return {
+        item_id: Number(item.id),
+        qty_received: qty,
+      };
     });
 
     try {
-      await suppliersApi.receivePO(Number(id), payload);
+      await suppliersApi.receivePO(Number(id), { items: itemsPayload });
       navigate(`/suppliers/purchase-orders/${id}`);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to receive stock.');
@@ -69,7 +70,7 @@ export const POReceive: React.FC = () => {
     }
   };
 
-  if (loading && !po) {
+  if (loading || !po) {
     return <div style={{ padding: 'var(--space-4)' }}>Loading receive form...</div>;
   }
 
@@ -88,33 +89,33 @@ export const POReceive: React.FC = () => {
         </div>
       </div>
 
-      <div className="form-card" style={{ maxWidth: '560px' }}>
+      <div className="form-card" style={{ maxWidth: '800px', width: '100%' }}>
         {error && <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div>}
 
         <form onSubmit={handleSubmit} noValidate>
-          <div className="table-card" style={{ marginBottom: 'var(--space-4)' }}>
-            <table>
+          <div className="table-card" style={{ marginBottom: 'var(--space-4)', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  <th>Ingredient</th>
-                  <th style={{ textAlign: 'right' }}>Ordered</th>
-                  <th style={{ textAlign: 'right' }}>Outstanding</th>
-                  <th style={{ textAlign: 'right' }}>Receive</th>
+                  <th style={{ textAlign: 'left', padding: '10px' }}>Ingredient</th>
+                  <th style={{ textAlign: 'right', padding: '10px' }}>Ordered</th>
+                  <th style={{ textAlign: 'right', padding: '10px' }}>Outstanding</th>
+                  <th style={{ textAlign: 'right', padding: '10px' }}>Receive</th>
                 </tr>
               </thead>
               <tbody>
                 {po?.items.map((item: POItem) => (
-                  <tr key={item.id}>
-                    <td>{item.ingredient_name}</td>
-                    <td style={{ textAlign: 'right' }}>{item.qty_ordered}</td>
-                    <td style={{ textAlign: 'right' }}>{item.outstanding_qty}</td>
-                    <td style={{ textAlign: 'right' }}>
+                  <tr key={item.id} style={{ borderTop: '1px solid var(--gray-200, #eee)' }}>
+                    <td style={{ padding: '12px 10px' }}>{item.ingredient_name}</td>
+                    <td style={{ textAlign: 'right', padding: '12px 10px' }}>{item.qty_ordered}</td>
+                    <td style={{ textAlign: 'right', padding: '12px 10px' }}>{item.outstanding_qty}</td>
+                    <td style={{ textAlign: 'right', padding: '12px 10px' }}>
                       <input
                         type="number"
                         className="input"
                         step="0.001"
                         min="0"
-                        style={{ width: '110px', textAlign: 'right' }}
+                        style={{ width: '120px', textAlign: 'right' }}
                         value={receivedValues[item.id] ?? ''}
                         onChange={(e) => handleInputChange(item.id, e.target.value)}
                       />

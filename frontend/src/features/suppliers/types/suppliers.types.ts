@@ -28,6 +28,7 @@ export interface SupplierOption {
 export interface IngredientOption {
   id: number;
   name: string;
+  unit_of_measure?: string;
 }
 
 export interface POCreateMeta {
@@ -35,12 +36,16 @@ export interface POCreateMeta {
   ingredients: IngredientOption[];
 }
 
-export interface CreatePOPayload {
-  supplier: number;
-  notes?: string;
+export interface CreatePOItemPayload {
   ingredient: number;
   qty_ordered: number;
   unit_cost: number;
+}
+
+export interface CreatePOPayload {
+  supplier: number;
+  notes?: string;
+  items: CreatePOItemPayload[];
 }
 
 export interface POListItem {

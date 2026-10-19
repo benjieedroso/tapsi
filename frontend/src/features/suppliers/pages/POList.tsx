@@ -1,12 +1,15 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { suppliersApi } from '../api/suppliers';
-import type { POListItem, POListResponse, SupplierOption } from '../types/suppliers.types';
+import type { POListItem, SupplierOption } from '../types/suppliers.types';
 
 export const POList: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [data, setData] = useState<POListResponse | null>(null);
+  const [pos, setPos] = useState<POListItem[]>([]);
+  const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
+  const [statuses, setStatuses] = useState<[string, string][]>([]);
+  
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,7 +27,17 @@ export const POList: React.FC = () => {
       if (supplierParam) params.supplier = supplierParam;
 
       const res = await suppliersApi.getPOList(params);
-      setData(res);
+
+      // Robust fallback handling using 'any' cast to prevent TS property errors
+      if (Array.isArray(res)) {
+        setPos(res);
+      } else if (res) {
+        const dataAny = res as any;
+        setPos(dataAny.pos || dataAny.results || []);
+        setSuppliers(dataAny.suppliers || []);
+        setStatuses(dataAny.statuses || []);
+      }
+
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load purchase orders.');
@@ -56,11 +69,7 @@ export const POList: React.FC = () => {
     return '';
   };
 
-  const pos = data?.pos || [];
-  const suppliers = data?.suppliers || [];
-  const statuses = data?.statuses || [];
-
-  if (loading && !data) {
+  if (loading && pos.length === 0) {
     return <div style={{ padding: 'var(--space-4)' }}>Loading purchase orders...</div>;
   }
 
@@ -91,6 +100,7 @@ export const POList: React.FC = () => {
           gap: 'var(--space-3)',
           flexWrap: 'wrap',
         }}
+        onSubmit={(e) => e.preventDefault()}
       >
         <select
           name="status"
@@ -171,7 +181,7 @@ export const POList: React.FC = () => {
                       year: 'numeric',
                     })}
                   </td>
-                  <td style={{ textAlign: 'right' }}>₱{(po.total ?? 0).toFixed(2)}</td>
+                  <td style={{ textAlign: 'right' }}>₱{Number(po.total ?? 0).toFixed(2)}</td>
                   <td>
                     <span className={`badge ${getStatusBadgeClass(po.status)}`}>
                       {po.status_display}

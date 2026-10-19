@@ -18,7 +18,7 @@ export const POForm: React.FC = () => {
   const [unitCost, setUnitCost] = useState<number | ''>('');
 
   const [nonFieldErrors, setNonFieldErrors] = useState<string[]>([]);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, any>>({});
 
   useEffect(() => {
     const fetchMeta = async () => {
@@ -43,9 +43,13 @@ export const POForm: React.FC = () => {
     const payload = {
       supplier: Number(supplier),
       notes: notes || undefined,
-      ingredient: Number(lineIngredient),
-      qty_ordered: Number(qtyOrdered),
-      unit_cost: Number(unitCost),
+      items: [
+        {
+          ingredient: Number(lineIngredient),
+          qty_ordered: Number(qtyOrdered),
+          unit_cost: Number(unitCost),
+        }
+      ]
     };
 
     try {
@@ -148,13 +152,13 @@ export const POForm: React.FC = () => {
                 <option value="">---------</option>
                 {(meta?.ingredients || []).map((ing: IngredientOption) => (
                   <option key={ing.id} value={ing.id}>
-                    {ing.name}
+                    {ing.name} {ing.unit_of_measure ? `(${ing.unit_of_measure})` : ''}
                   </option>
                 ))}
               </select>
-              {fieldErrors.ingredient && (
+              {(fieldErrors.ingredient || fieldErrors.items) && (
                 <ul className="errorlist">
-                  <li>{fieldErrors.ingredient}</li>
+                  <li>{fieldErrors.ingredient || (Array.isArray(fieldErrors.items) ? fieldErrors.items[0]?.ingredient : 'Invalid item data')}</li>
                 </ul>
               )}
             </div>
