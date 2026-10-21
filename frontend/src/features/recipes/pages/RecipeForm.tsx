@@ -139,7 +139,7 @@ export const RecipeForm: React.FC = () => {
               onChange={handleChange}
             >
               <option value="">None / Select menu item...</option>
-              {meta.menu_items.map((item) => (
+              {(meta?.menu_items || []).map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name}
                 </option>
@@ -156,7 +156,7 @@ export const RecipeForm: React.FC = () => {
               onChange={handleChange}
             >
               <option value="">None / Select add-on...</option>
-              {meta.addons.map((addon) => (
+              {(meta?.addons || []).map((addon) => (
                 <option key={addon.id} value={addon.id}>
                   {addon.name}
                 </option>
@@ -178,9 +178,9 @@ export const RecipeForm: React.FC = () => {
                   onChange={handleChange}
                 >
                   <option value="">Select ingredient...</option>
-                  {meta.ingredients.map((ing) => (
+                  {(meta?.ingredients || []).map((ing) => (
                     <option key={ing.id} value={ing.id}>
-                      {ing.name} ({ing.unit_of_measure})
+                      {ing.name} {ing.unit_of_measure ? `(${ing.unit_of_measure})` : ''}
                     </option>
                   ))}
                 </select>

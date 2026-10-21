@@ -25,9 +25,20 @@ export const IngredientList: React.FC = () => {
       if (searchQuery) params.q = searchQuery;
       if (lowStockFilter) params.low_stock = '1';
 
-      const response = await inventoryApi.getIngredientList(params);
-      setIngredients(response.ingredients || []);
-      setOpenAlerts(response.open_alerts || []);
+      const response: any = await inventoryApi.getIngredientList(params);
+      
+      // Gracefully handle arrays, DRF pagination, or custom object formats
+      if (Array.isArray(response)) {
+        setIngredients(response);
+        setOpenAlerts([]);
+      } else if (response) {
+        setIngredients(response.ingredients || response.results || response.data || []);
+        setOpenAlerts(response.open_alerts || []);
+      } else {
+        setIngredients([]);
+        setOpenAlerts([]);
+      }
+
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load inventory data.');
@@ -155,9 +166,10 @@ export const IngredientList: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              ingredients.map((ingredient) => {
-                const currentStock = ingredient.stock ?? 0;
-                const minStock = ingredient.minimum_stock ?? 0;
+              ingredients.map((ingredient: any) => {
+                const currentStock = Number(ingredient.stock ?? ingredient.current_stock ?? 0);
+                const minStock = Number(ingredient.minimum_stock ?? 0);
+                const avgCost = Number(ingredient.average_unit_cost ?? 0);
                 const isLow = currentStock <= minStock;
 
                 return (
@@ -169,7 +181,7 @@ export const IngredientList: React.FC = () => {
                       {isLow && <span className="badge badge-warning" style={{ marginLeft: 'var(--space-2)' }}>Low</span>}
                     </td>
                     <td>{minStock.toFixed(2)}</td>
-                    <td>₱{(ingredient.average_unit_cost ?? 0).toFixed(2)}</td>
+                    <td>₱{avgCost.toFixed(2)}</td>
                     <td style={{ textAlign: 'right' }}>
                       <Link to={`/inventory/ingredients/${ingredient.id}/stock-card`} className="btn btn-ghost btn-sm">
                         Stock card

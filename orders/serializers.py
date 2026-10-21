@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Order, OrderItem, OrderItemAddon, generate_order_number
+from .models import Order, OrderItem, OrderItemAddon, generate_order_number, TableStatusLog, DiningTable
 
 
 class OrderItemAddonSerializer(serializers.ModelSerializer):
@@ -138,3 +138,24 @@ class OrderSerializer(serializers.ModelSerializer):
         # BR-011 / FR-087: Recompute subtotal, VAT, and discounts
         order.recompute_totals(user=user)
         return order
+
+class TableStatusLogSerializer(serializers.ModelSerializer):
+    changed_by_name = serializers.CharField(source="changed_by.get_full_name", read_only=True)
+
+    class Meta:
+        model = TableStatusLog
+        fields = ["id", "old_status", "new_status", "changed_by_name", "reason", "created_at"]
+
+class DiningTableSerializer(serializers.ModelSerializer):
+    running_bill = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    status_logs = TableStatusLogSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = DiningTable
+        fields = [
+            "id", "restaurant_id", "name", "seating_capacity", 
+            "status", "status_display", "is_active", "running_bill",
+            "status_logs", "created_at", "updated_at"
+        ]
+        read_only_fields = ["restaurant_id", "created_at", "updated_at"]

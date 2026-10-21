@@ -68,4 +68,9 @@ export const suppliersApi = {
   deleteSupplier: async (id: number): Promise<void> => {
     await apiClient.delete(`/api/v1/suppliers/${id}/`);
   },
+
+  updatePO: async (id: number, payload: CreatePOPayload): Promise<any> => {
+    const response = await apiClient.put(`/api/v1/suppliers/purchase-orders/${id}/`, payload);
+    return response.data;
+  },
 };

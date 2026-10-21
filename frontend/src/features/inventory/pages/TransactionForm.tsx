@@ -27,7 +27,7 @@ export const TransactionForm: React.FC = () => {
       try {
         const data = await inventoryApi.getTransactionFormMeta();
         setMeta(data);
-        if (data.transaction_types?.length > 0) {
+        if (data?.transaction_types?.length > 0) {
           setTransactionType(data.transaction_types[0][0]);
         }
       } catch (err: any) {
@@ -114,7 +114,7 @@ export const TransactionForm: React.FC = () => {
               required
             >
               <option value="">---------</option>
-              {meta?.ingredients.map((item: IngredientOption) => (
+              {meta?.ingredients?.map((item: IngredientOption) => (
                 <option key={item.id} value={item.id}>
                   {item.name} ({item.unit_of_measure})
                 </option>
@@ -137,7 +137,7 @@ export const TransactionForm: React.FC = () => {
               onChange={(e) => setTransactionType(e.target.value)}
               required
             >
-              {meta?.transaction_types.map(([val, label]) => (
+              {meta?.transaction_types?.map(([val, label]) => (
                 <option key={val} value={val}>
                   {label}
                 </option>
@@ -160,7 +160,7 @@ export const TransactionForm: React.FC = () => {
                 value={direction}
                 onChange={(e) => setDirection(e.target.value)}
               >
-                {meta?.directions.map(([val, label]) => (
+                {meta?.directions?.map(([val, label]) => (
                   <option key={val} value={val}>
                     {label}
                   </option>

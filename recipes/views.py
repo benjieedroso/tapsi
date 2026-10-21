@@ -2,11 +2,14 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
-from rest_framework import status
+from rest_framework import status, viewsets, serializers
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from menu.models import MenuItem, AddOn
+from inventory.models import Ingredient
 
 from menu.views import TenantAwareViewSet
+from inventory.models import Ingredient
 
 from accounts.models import User
 
@@ -139,6 +142,16 @@ def recipe_line_remove(request, pk, line_pk):
     return redirect("recipes:recipe_detail", pk=recipe.pk)
 
 #New Code
+class TenantAwareViewSet(viewsets.ModelViewSet):
+    def get_restaurant_id(self):
+        if hasattr(self.request.user, "restaurant_id") and self.request.user.restaurant_id:
+            return self.request.user.restaurant_id
+        return int(self.request.headers.get("X-Restaurant-ID", 1))
+
+    def perform_create(self, serializer):
+        serializer.save(restaurant_id=self.get_restaurant_id())
+
+
 class RecipeViewSet(TenantAwareViewSet):
     serializer_class = RecipeSerializer
 
@@ -158,12 +171,42 @@ class RecipeViewSet(TenantAwareViewSet):
 
         return queryset
 
-    def perform_create(self, serializer):
-        serializer.save()
+    def retrieve(self, request, *args, **kwargs):
+        """Custom retrieve to include ingredient meta for the detail view form."""
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        
+        rid = self.get_restaurant_id()
+        ingredients = Ingredient.objects.filter(restaurant_id=rid)
+        
+        return Response({
+            "recipe": serializer.data,
+            "meta": {
+                "ingredients": [
+                    {"id": i.id, "name": i.name, "unit_of_measure": getattr(i, "unit_of_measure", "")} 
+                    for i in ingredients
+                ]
+            }
+        })
+
+    @action(detail=False, methods=["get"], url_path="meta")
+    def meta(self, request):
+        rid = self.get_restaurant_id()
+        menu_items = MenuItem.objects.filter(restaurant_id=rid)
+        addons = AddOn.objects.filter(restaurant_id=rid)
+        ingredients = Ingredient.objects.filter(restaurant_id=rid)
+
+        return Response({
+            "menu_items": [{"id": m.id, "name": m.name} for m in menu_items],
+            "addons": [{"id": a.id, "name": a.name} for a in addons],
+            "ingredients": [
+                {"id": i.id, "name": i.name, "unit_of_measure": getattr(i, "unit_of_measure", "")} 
+                for i in ingredients
+            ],
+        })
 
     @action(detail=False, methods=["get"], url_path="by-target")
     def get_by_target(self, request):
-        """FR-070: Fast lookup for a specific item/addon recipe."""
         menu_item_id = request.query_params.get("menu_item")
         addon_id = request.query_params.get("addon")
 
@@ -173,3 +216,64 @@ class RecipeViewSet(TenantAwareViewSet):
 
         serializer = self.get_serializer(recipe)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["post"], url_path="lines")
+    def add_line(self, request, pk=None):
+        """Adds an ingredient line to an existing recipe."""
+        recipe = self.get_object()
+        
+        ingredient_id = request.data.get("ingredient_id")
+        quantity = request.data.get("quantity")
+
+        if not ingredient_id or not quantity:
+            return Response(
+                {"detail": "Both ingredient_id and quantity are required."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check if line already exists for this ingredient, update or create
+        line, created = RecipeIngredient.objects.update_or_create(
+            recipe=recipe,
+            ingredient_id=ingredient_id,
+            defaults={"quantity": quantity}
+        )
+
+        serializer = RecipeSerializer(recipe, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+
+    @action(detail=True, methods=["delete"], url_path="lines/(?P<line_id>[^/.]+)")
+    def remove_line(self, request, pk=None, line_id=None):
+        """Removes an ingredient line from a recipe."""
+        recipe = self.get_object()
+        try:
+            line = RecipeIngredient.objects.get(id=line_id, recipe=recipe)
+            line.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except RecipeIngredient.DoesNotExist:
+            return Response({"detail": "Line not found."}, status=status.HTTP_404_NOT_FOUND)
+
+class IngredientNestedSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Ingredient  # Make sure Ingredient is imported from inventory.models
+        fields = ["id", "name", "unit_of_measure", "average_unit_cost"]
+
+
+class RecipeIngredientSerializer(serializers.ModelSerializer):
+    # Nested representation so line.ingredient.name and line.ingredient.average_unit_cost work on the frontend
+    ingredient = IngredientNestedSerializer(read_only=True)
+    ingredient_id = serializers.PrimaryKeyRelatedField(
+        queryset=Ingredient.objects.all(), source="ingredient", write_only=True
+    )
+    
+    line_cost = serializers.ReadOnlyField()
+
+    class Meta:
+        model = RecipeIngredient
+        fields = [
+            "id",
+            "ingredient",
+            "ingredient_id",
+            "quantity",
+            "line_cost",
+        ]

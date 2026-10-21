@@ -4,7 +4,7 @@ from . import views
 
 router = DefaultRouter()
 router.register(r"orders", views.OrderViewSet, basename="order")
-router.register(r"tables", views.OrderViewSet, basename="tables")
+router.register(r"tables", views.DiningTableViewSet, basename="tables")
 
 app_name = "orders"
 

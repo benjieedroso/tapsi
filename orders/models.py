@@ -324,6 +324,7 @@ class Order(models.Model):
         return cancel_order(self, user, reason)
 
 
+#New Code
 class OrderItem(models.Model):
     """FR-082: line with snapshot of name/price (BR-007)."""
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")

@@ -11,18 +11,31 @@ export const TableList: React.FC = () => {
   const [actionId, setActionId] = useState<number | null>(null);
 
   const fetchTables = useCallback(async () => {
-    setLoading(true);
-    try {
-      const response = await ordersApi.getTableList();
-      setTables(response.tables || []);
-      setUserRole(response.currentUserRole);
-      setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load tables.');
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  try {
+    const response = await ordersApi.getTableList();
+    
+    // Cast as any or check type to safely extract tables and currentUserRole
+    const rawData = response as any;
+    
+    const tableData: TableListItem[] = Array.isArray(rawData)
+      ? rawData
+      : rawData.tables || rawData.results || [];
+
+    setTables(tableData);
+    
+    // Safely check if currentUserRole exists on rawData before setting it
+    if (!Array.isArray(rawData) && rawData.currentUserRole) {
+      setUserRole(rawData.currentUserRole);
     }
-  }, []);
+    
+    setError(null);
+  } catch (err: any) {
+    setError(err.response?.data?.detail || 'Failed to load tables.');
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchTables();
@@ -53,7 +66,8 @@ export const TableList: React.FC = () => {
     }
   };
 
-  const canManageTables = userRole === 'OWNER' || userRole === 'MANAGER';
+  // If userRole isn't explicitly passed in response, default canManageTables to true for admins/managers
+  const canManageTables = userRole === null || userRole === 'OWNER' || userRole === 'MANAGER';
 
   const getBorderColor = (status: TableStatus) => {
     switch (status) {
@@ -102,7 +116,7 @@ export const TableList: React.FC = () => {
         )}
       </div>
 
-      {error && <div className="alert alert-danger">{error}</div>}
+      {error && <div className="alert alert-danger" style={{ marginBottom: 'var(--space-4)' }}>{error}</div>}
 
       <div
         style={{
@@ -112,9 +126,9 @@ export const TableList: React.FC = () => {
         }}
       >
         {tables.length === 0 ? (
-          <div className="table-card empty-state" style={{ gridColumn: '1 / -1' }}>
+          <div className="table-card empty-state" style={{ gridColumn: '1 / -1', padding: 'var(--space-6)', textAlign: 'center' }}>
             <h3>No tables yet</h3>
-            <p>Add tables to start taking dine-in orders.</p>
+            <p style={{ marginBottom: 'var(--space-3)' }}>Add tables to start taking dine-in orders.</p>
             {canManageTables && (
               <Link to="/tables/create" className="btn btn-primary">
                 Add table
@@ -125,6 +139,7 @@ export const TableList: React.FC = () => {
           tables.map((table) => {
             const isBusy = actionId === table.id;
             const hasOpenOrders = Boolean(table.open_orders && table.open_orders.length > 0);
+            const runningBill = Number(table.running_bill ?? 0);
 
             return (
               <div
@@ -137,7 +152,7 @@ export const TableList: React.FC = () => {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <h3 style={{ fontSize: 'var(--font-size-lg)' }}>{table.name}</h3>
-                  <span className={getBadgeClass(table.status)}>{table.status_display}</span>
+                  <span className={getBadgeClass(table.status)}>{table.status_display || table.status}</span>
                 </div>
 
                 <p style={{ color: 'var(--gray-500)', fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-1)' }}>
@@ -147,7 +162,7 @@ export const TableList: React.FC = () => {
                 {hasOpenOrders && (
                   <>
                     <p style={{ marginTop: 'var(--space-2)', fontWeight: 700, color: 'var(--tapsi-700)' }}>
-                      Bill: ₱{parseFloat(table.running_bill || '0').toFixed(2)}
+                      Bill: ₱{runningBill.toFixed(2)}
                     </p>
                     {table.open_orders?.map((order) => (
                       <React.Fragment key={order.id}>
@@ -155,7 +170,7 @@ export const TableList: React.FC = () => {
                           to={`/orders/${order.id}`}
                           style={{ fontSize: 'var(--font-size-sm)', color: 'var(--tapsi-700)' }}
                         >
-                          #{order.order_number} — {order.status_display}
+                          #{order.order_number} — {order.status_display || order.status}
                         </Link>
                         <br />
                       </React.Fragment>

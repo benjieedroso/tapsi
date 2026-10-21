@@ -20,6 +20,7 @@ from rest_framework import status
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.decorators import action
 
 
 def _is_manager_or_above(user):
@@ -192,9 +193,45 @@ class IngredientViewSet(TenantAwareViewSet):
         # Soft delete instead of hard purging from DB
         instance.soft_delete()
 
+    @action(detail=True, methods=["get"], url_path="stock-card")
+    def stock_card(self, request, pk=None):
+        """
+        Returns the transaction history (stock card ledger) for a specific ingredient.
+        """
+        ingredient = self.get_object()
+        
+        # Query all inventory transactions related to this ingredient
+        transactions = InventoryTransaction.objects.filter(
+            ingredient=ingredient,
+            restaurant_id=self.get_restaurant_id()
+        ).select_related("user").order_by("-id")
+
+        # Serialize transactions
+        serializer = InventoryTransactionSerializer(transactions, many=True)
+
+        # Safely extract current_stock depending on what attribute your model defines
+        current_stock = 0.0
+        if hasattr(ingredient, "current_stock"):
+            current_stock = float(ingredient.current_stock or 0)
+        elif hasattr(ingredient, "get_current_stock"):
+            current_stock = float(ingredient.get_current_stock() or 0)
+
+        return Response({
+            "ingredient": {
+                "id": ingredient.id,
+                "name": ingredient.name,
+                "unit_of_measure": ingredient.unit_of_measure,
+                "current_stock": current_stock,
+                "minimum_stock": float(getattr(ingredient, "minimum_stock", 0)),
+                "average_unit_cost": float(getattr(ingredient, "average_unit_cost", 0)),
+            },
+            "transactions": serializer.data
+        })
+
 
 class InventoryTransactionViewSet(TenantAwareViewSet):
     serializer_class = InventoryTransactionSerializer
+    queryset = InventoryTransaction.objects.all()
 
     def get_queryset(self):
         return InventoryTransaction.objects.filter(
@@ -203,12 +240,42 @@ class InventoryTransactionViewSet(TenantAwareViewSet):
 
     def perform_create(self, serializer):
         try:
-            # Passes request.user into model save() for user accountability
-            serializer.save(user=self.request.user)
+            # Explicitly attach restaurant_id and user during save
+            serializer.save(
+                restaurant_id=self.get_restaurant_id(),
+                user=self.request.user if self.request.user.is_authenticated else None
+            )
         except DjangoValidationError as e:
-            # Converts model-level ValidationError (FR-044/FR-043) into standard DRF 400 Bad Request
-            raise DRFValidationError({"detail": e.messages if hasattr(e, "messages") else str(e)})
+            # Converts model-level ValidationError (e.g. clean() checks) into standard DRF 400 Bad Request
+            raise DRFValidationError(e.message_dict if hasattr(e, "message_dict") else {"detail": e.messages})
 
+    @action(detail=False, methods=["get"], url_path="create/meta")
+    def create_meta(self, request):
+        """Provides metadata (ingredients, transaction types, directions) for the form."""
+        rid = self.get_restaurant_id()
+        ingredients = Ingredient.objects.filter(restaurant_id=rid)
+
+        return Response({
+            "ingredients": [
+                {
+                    "id": i.id,
+                    "name": i.name,
+                    "unit_of_measure": getattr(i, "unit_of_measure", "")
+                } 
+                for i in ingredients
+            ],
+            "transaction_types": [
+                ("PURCHASE", "Purchase"),
+                ("CONSUMPTION", "Consumption"),
+                ("ADJUSTMENT", "Adjustment"),
+                ("SPOILAGE", "Spoilage"),
+                ("RETURN", "Return"),
+            ],
+            "directions": [
+                ("ADD", "Add"),
+                ("SUBTRACT", "Subtract"),
+            ]
+        })
 
 class LowStockAlertViewSet(TenantAwareViewSet):
     serializer_class = LowStockAlertSerializer

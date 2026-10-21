@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { ordersApi } from '../api/orders';
+import type { TableStatus } from '../types/orders.types';
 
 export const TableForm: React.FC = () => {
   const navigate = useNavigate();
@@ -9,7 +10,8 @@ export const TableForm: React.FC = () => {
   const action = isEdit ? 'Edit' : 'Add';
 
   const [name, setName] = useState<string>('');
-  const [capacity, setCapacity] = useState<number | ''>(4);
+  const [seatingCapacity, setSeatingCapacity] = useState<number | ''>(4);
+  const [status, setStatus] = useState<TableStatus>('AVAILABLE');
 
   const [loading, setLoading] = useState<boolean>(isEdit);
   const [submitting, setSubmitting] = useState<boolean>(false);
@@ -22,7 +24,10 @@ export const TableForm: React.FC = () => {
       try {
         const table = await ordersApi.getTableDetail(Number(id));
         setName(table.name);
-        setCapacity(table.capacity);
+        setSeatingCapacity(table.seating_capacity);
+        if (table.status) {
+          setStatus(table.status as TableStatus);
+        }
       } catch (err: any) {
         setNonFieldErrors([err.response?.data?.detail || 'Failed to load table details.']);
       } finally {
@@ -40,7 +45,8 @@ export const TableForm: React.FC = () => {
 
     const payload = {
       name,
-      capacity: Number(capacity),
+      seating_capacity: Number(seatingCapacity),
+      status,
     };
 
     try {
@@ -75,7 +81,7 @@ export const TableForm: React.FC = () => {
         <div>
           <h1>{action} Table</h1>
           <p style={{ color: 'var(--gray-500)', fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-1)' }}>
-            Table name and seating capacity (FR-090).
+            Configure table name, capacity, and operational status (FR-090..091).
           </p>
         </div>
       </div>
@@ -110,20 +116,41 @@ export const TableForm: React.FC = () => {
           </div>
 
           <div className="field">
-            <label htmlFor="id_capacity">Seating capacity</label>
+            <label htmlFor="id_seating_capacity">Seating capacity</label>
             <input
               type="number"
-              id="id_capacity"
-              name="capacity"
+              id="id_seating_capacity"
+              name="seating_capacity"
               className="input"
-              value={capacity}
-              onChange={(e) => setCapacity(e.target.value === '' ? '' : Number(e.target.value))}
+              value={seatingCapacity}
+              onChange={(e) => setSeatingCapacity(e.target.value === '' ? '' : Number(e.target.value))}
               min={1}
               required
             />
-            {fieldErrors.capacity && (
+            {fieldErrors.seating_capacity && (
               <ul className="errorlist">
-                <li>{fieldErrors.capacity}</li>
+                <li>{fieldErrors.seating_capacity}</li>
+              </ul>
+            )}
+          </div>
+
+          <div className="field" style={{ marginTop: 'var(--space-3)' }}>
+            <label htmlFor="id_status">Table status</label>
+            <select
+              id="id_status"
+              name="status"
+              className="input"
+              value={status}
+              onChange={(e) => setStatus(e.target.value as TableStatus)}
+            >
+              <option value="AVAILABLE">Available</option>
+              <option value="OCCUPIED">Occupied</option>
+              <option value="RESERVED">Reserved</option>
+              <option value="CLEANING">Cleaning</option>
+            </select>
+            {fieldErrors.status && (
+              <ul className="errorlist">
+                <li>{fieldErrors.status}</li>
               </ul>
             )}
           </div>

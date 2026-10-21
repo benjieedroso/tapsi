@@ -185,6 +185,7 @@ export default function App() {
             <Route path="/suppliers/purchase-orders/create" element={<POForm />} />
             <Route path="/suppliers/purchase-orders/:id" element={<PODetail />} />
             <Route path="/suppliers/purchase-orders/:id/receive" element={<POReceive />} />
+            <Route path="/suppliers/purchase-orders/:id/edit" element={<POForm />} />
 
             {/* Closing Routes */}
             <Route path="/closing" element={<ClosingList userRole={user?.role} />} />

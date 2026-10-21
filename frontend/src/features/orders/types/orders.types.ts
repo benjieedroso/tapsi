@@ -157,18 +157,25 @@ export interface ReceiptData {
 
 export interface TableFormData {
   name: string;
-  capacity: number;
+  seating_capacity: number;
+  status?: TableStatus;
 }
 
 export interface TableDetail extends TableFormData {
   id: number;
+  status: TableStatus;
+  status_display?: string;
+  is_active: boolean;
+  running_bill?: number | string;
+  open_orders?: TableOpenOrder[];
   is_occupied?: boolean;
 }
 
 export interface TableOpenOrder {
   id: number;
   order_number: string;
-  status_display: string;
+  status_display?: string;
+  status?: string;
 }
 
 export interface TableListItem {
@@ -181,7 +188,11 @@ export interface TableListItem {
   open_orders?: TableOpenOrder[];
 }
 
-export interface TableListResponse {
-  tables: TableListItem[];
-  currentUserRole: UserRole;
-}
+// Supports both direct DRF array responses and custom paginated/wrapped object responses
+export type TableListResponse = 
+  | TableListItem[] 
+  | {
+      tables?: TableListItem[];
+      results?: TableListItem[];
+      currentUserRole?: UserRole;
+    };

@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { suppliersApi } from '../api/suppliers';
 import type { POCreateMeta, SupplierOption, IngredientOption } from '../types/suppliers.types';
 
 export const POForm: React.FC = () => {
   const navigate = useNavigate();
+  const { id } = useParams<{ id?: string }>();
+  const isEditing = Boolean(id);
 
   const [meta, setMeta] = useState<POCreateMeta | null>(null);
-  const [loadingMeta, setLoadingMeta] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [submitting, setSubmitting] = useState<boolean>(false);
 
   // Form states
@@ -21,18 +23,29 @@ export const POForm: React.FC = () => {
   const [fieldErrors, setFieldErrors] = useState<Record<string, any>>({});
 
   useEffect(() => {
-    const fetchMeta = async () => {
+    const fetchData = async () => {
       try {
-        const data = await suppliersApi.getPOCreateMeta();
-        setMeta(data);
+        const metaData = await suppliersApi.getPOCreateMeta();
+        setMeta(metaData);
+
+        if (isEditing && id) {
+          const poData = await suppliersApi.getPODetail(Number(id));
+          setSupplier(String(poData.supplier_name ? '' : '')); // We map supplier id if available, or fetch detail
+          setNotes(poData.notes || '');
+          if (poData.items && poData.items.length > 0) {
+            setLineIngredient(String(poData.items[0].ingredient_name)); // or ingredient ID if returned
+            setQtyOrdered(poData.items[0].qty_ordered);
+            setUnitCost(poData.items[0].unit_cost);
+          }
+        }
       } catch (err: any) {
-        setNonFieldErrors([err.response?.data?.detail || 'Failed to load form metadata.']);
+        setNonFieldErrors([err.response?.data?.detail || 'Failed to load form data.']);
       } finally {
-        setLoadingMeta(false);
+        setLoading(false);
       }
     };
-    fetchMeta();
-  }, []);
+    fetchData();
+  }, [id, isEditing]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,8 +66,13 @@ export const POForm: React.FC = () => {
     };
 
     try {
-      const res = await suppliersApi.createPO(payload);
-      navigate(`/suppliers/purchase-orders/${res.id}`);
+      if (isEditing && id) {
+        await suppliersApi.updatePO(Number(id), payload);
+        navigate(`/suppliers/purchase-orders/${id}`);
+      } else {
+        const res = await suppliersApi.createPO(payload);
+        navigate(`/suppliers/purchase-orders/${res.id}`);
+      }
     } catch (err: any) {
       if (err.response?.data) {
         const data = err.response.data;
@@ -70,7 +88,7 @@ export const POForm: React.FC = () => {
     }
   };
 
-  if (loadingMeta) {
+  if (loading) {
     return <div style={{ padding: 'var(--space-4)' }}>Loading form...</div>;
   }
 
@@ -78,9 +96,9 @@ export const POForm: React.FC = () => {
     <>
       <div className="page-heading">
         <div>
-          <h1>New Purchase Order</h1>
+          <h1>{isEditing ? 'Edit Purchase Order' : 'New Purchase Order'}</h1>
           <p style={{ color: 'var(--gray-500)', fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-1)' }}>
-            Add one line item per ingredient. More lines can be added after saving.
+            {isEditing ? 'Modify draft purchase order details.' : 'Add one line item per ingredient. More lines can be added after saving.'}
           </p>
         </div>
       </div>
@@ -156,9 +174,9 @@ export const POForm: React.FC = () => {
                   </option>
                 ))}
               </select>
-              {(fieldErrors.ingredient || fieldErrors.items) && (
+              {fieldErrors.items && (
                 <ul className="errorlist">
-                  <li>{fieldErrors.ingredient || (Array.isArray(fieldErrors.items) ? fieldErrors.items[0]?.ingredient : 'Invalid item data')}</li>
+                  <li>Invalid item data</li>
                 </ul>
               )}
             </div>
@@ -204,7 +222,7 @@ export const POForm: React.FC = () => {
 
           <div style={{ display: 'flex', gap: 'var(--space-3)', marginTop: 'var(--space-6)' }}>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
-              {submitting ? 'Creating...' : 'Create purchase order'}
+              {submitting ? 'Saving...' : isEditing ? 'Update purchase order' : 'Create purchase order'}
             </button>
             <Link to="/suppliers/purchase-orders" className="btn btn-secondary">
               Cancel

@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { employeesApi } from '../api/employees';
-import type { EmployeeDetail } from '../types/employees.types';
+import type { EmployeeDetail } from '../types/employees.types'; 
+import type { UserRole } from '../../orders/types/orders.types';
+
 
 export const EmployeeList: React.FC = () => {
   const [employees, setEmployees] = useState<EmployeeDetail[]>([]);
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -13,7 +16,16 @@ export const EmployeeList: React.FC = () => {
     setLoading(true);
     try {
       const data = await employeesApi.getEmployeeList({ q: query });
-      setEmployees(Array.isArray(data) ? data : []);
+      
+      // Handle response whether it's an array or a wrapped object containing role info
+      if (Array.isArray(data)) {
+        setEmployees(data);
+      } else {
+        setEmployees((data as any).results || (data as any).employees || []);
+        if ((data as any).currentUserRole) {
+          setCurrentUserRole((data as any).currentUserRole);
+        }
+      }
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load employees.');
@@ -30,6 +42,10 @@ export const EmployeeList: React.FC = () => {
     e.preventDefault();
     fetchEmployees(searchQuery);
   };
+
+  // FR-121 Check: Only OWNER or MANAGER can see salaries
+  const canViewSalary = currentUserRole === 'OWNER' || currentUserRole === 'MANAGER';
+  const colSpanCount = canViewSalary ? 7 : 5;
 
   return (
     <div style={{ padding: 'var(--space-6)' }}>
@@ -68,19 +84,23 @@ export const EmployeeList: React.FC = () => {
               <th>Position</th>
               <th>Phone</th>
               <th>Status</th>
-              <th style={{ textAlign: 'right' }}>Daily Rate</th>
-              <th style={{ textAlign: 'right' }}>Monthly Salary</th>
+              {canViewSalary && (
+                <>
+                  <th style={{ textAlign: 'right' }}>Daily Rate</th>
+                  <th style={{ textAlign: 'right' }}>Monthly Salary</th>
+                </>
+              )}
               <th style={{ textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: 'var(--space-5)' }}>Loading employees...</td>
+                <td colSpan={colSpanCount} style={{ textAlign: 'center', padding: 'var(--space-5)' }}>Loading employees...</td>
               </tr>
             ) : employees.length === 0 ? (
               <tr>
-                <td colSpan={7} className="empty-state" style={{ textAlign: 'center', padding: 'var(--space-6)' }}>
+                <td colSpan={colSpanCount} className="empty-state" style={{ textAlign: 'center', padding: 'var(--space-6)' }}>
                   <h3>No employees yet</h3>
                   <p style={{ color: 'var(--gray-500)', marginBottom: 'var(--space-4)' }}>Add staff records for attendance tracking.</p>
                   <Link to="/employees/create" className="btn btn-primary">Add employee</Link>
@@ -102,8 +122,12 @@ export const EmployeeList: React.FC = () => {
                       {emp.employment_status}
                     </span>
                   </td>
-                  <td style={{ textAlign: 'right' }}>{emp.daily_rate ? `₱${parseFloat(emp.daily_rate).toFixed(2)}` : '—'}</td>
-                  <td style={{ textAlign: 'right' }}>{emp.monthly_salary ? `₱${parseFloat(emp.monthly_salary).toFixed(2)}` : '—'}</td>
+                  {canViewSalary && (
+                    <>
+                      <td style={{ textAlign: 'right' }}>{emp.daily_rate ? `₱${parseFloat(emp.daily_rate).toFixed(2)}` : '—'}</td>
+                      <td style={{ textAlign: 'right' }}>{emp.monthly_salary ? `₱${parseFloat(emp.monthly_salary).toFixed(2)}` : '—'}</td>
+                    </>
+                  )}
                   <td style={{ textAlign: 'right' }}>
                     <Link to={`/employees/${emp.id}/edit`} className="btn btn-ghost btn-sm">Edit</Link>
                   </td>

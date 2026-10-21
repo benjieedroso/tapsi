@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Recipe, RecipeIngredient
+from menu.models import MenuItem, AddOn
 
 
 class RecipeIngredientSerializer(serializers.ModelSerializer):
@@ -20,64 +21,62 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
 
 
 class RecipeSerializer(serializers.ModelSerializer):
-    lines = RecipeIngredientSerializer(many=True, required=False)
-    menu_item_name = serializers.ReadOnlyField(source="menu_item.name")
-    addon_name = serializers.ReadOnlyField(source="addon.name")
-    cost = serializers.ReadOnlyField()
-    margin = serializers.ReadOnlyField()
+    menu_item_id = serializers.PrimaryKeyRelatedField(
+        queryset=MenuItem.objects.all(), source="menu_item", write_only=True, required=False, allow_null=True
+    )
+    addon_id = serializers.PrimaryKeyRelatedField(
+        queryset=AddOn.objects.all(), source="addon", write_only=True, required=False, allow_null=True
+    )
+    
+    menu_item = serializers.StringRelatedField(read_only=True)
+    addon = serializers.StringRelatedField(read_only=True)
+    lines = RecipeIngredientSerializer(many=True, read_only=True)
+
+    ingredient_id = serializers.IntegerField(write_only=True, required=False, allow_null=True)
+    quantity = serializers.DecimalField(max_digits=12, decimal_places=3, write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = Recipe
         fields = [
             "id",
-            "menu_item",
-            "menu_item_name",
-            "addon",
-            "addon_name",
             "name",
+            "menu_item",
+            "menu_item_id",
+            "addon",
+            "addon_id",
+            "ingredient_id",
+            "quantity",
             "cost",
             "margin",
             "lines",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
-
-    def validate(self, attrs):
-        menu_item = attrs.get("menu_item")
-        addon = attrs.get("addon")
-
-        if not menu_item and not addon:
-            raise serializers.ValidationError("A recipe must be linked to either a MenuItem or an AddOn.")
-        if menu_item and addon:
-            raise serializers.ValidationError("A recipe cannot be linked to both a MenuItem and an AddOn simultaneously.")
-
-        return attrs
+        read_only_fields = ["cost", "margin", "lines"]
 
     def create(self, validated_data):
-        lines_data = validated_data.pop("lines", [])
+        ingredient_id = validated_data.pop("ingredient_id", None)
+        quantity = validated_data.pop("quantity", None)
+        
+        # Guaranteed restaurant_id resolution
+        view = self.context.get("view")
         request = self.context.get("request")
-        restaurant_id = getattr(request.user, "restaurant_id", None)
 
-        recipe = Recipe.objects.create(restaurant_id=restaurant_id, **validated_data)
+        if "restaurant_id" not in validated_data:
+            if view and hasattr(view, "get_restaurant_id"):
+                validated_data["restaurant_id"] = view.get_restaurant_id()
+            elif request and hasattr(request, "user") and hasattr(request.user, "restaurant_id"):
+                validated_data["restaurant_id"] = request.user.restaurant_id
+            else:
+                validated_data["restaurant_id"] = int(request.headers.get("X-Restaurant-ID", 1))
 
-        for line_data in lines_data:
-            RecipeIngredient.objects.create(recipe=recipe, **line_data)
+        recipe = Recipe.objects.create(**validated_data)
+
+        if ingredient_id and quantity:
+            RecipeIngredient.objects.create(
+                recipe=recipe,
+                ingredient_id=ingredient_id,
+                quantity=quantity
+            )
 
         return recipe
-
-    def update(self, instance, validated_data):
-        lines_data = validated_data.pop("lines", None)
-
-        instance.menu_item = validated_data.get("menu_item", instance.menu_item)
-        instance.addon = validated_data.get("addon", instance.addon)
-        instance.name = validated_data.get("name", instance.name)
-        instance.save()
-
-        if lines_data is not None:
-            # Replace lines on update
-            instance.lines.all().delete()
-            for line_data in lines_data:
-                RecipeIngredient.objects.create(recipe=instance, **line_data)
-
-        return instance

@@ -12,7 +12,17 @@ export const RecipeList: React.FC = () => {
     setLoading(true);
     try {
       const res = await recipesApi.getRecipeList();
-      setRecipes(res.recipes || []);
+      
+      // Handle direct arrays, DRF pagination 'results', or 'recipes' keys
+      if (Array.isArray(res)) {
+        setRecipes(res);
+      } else if (res) {
+        const dataAny = res as any;
+        setRecipes(dataAny.results || dataAny.recipes || dataAny.data || []);
+      } else {
+        setRecipes([]);
+      }
+
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load recipes.');
@@ -75,7 +85,7 @@ export const RecipeList: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              safeRecipes.map((recipe) => (
+              safeRecipes.map((recipe: any) => (
                 <tr key={recipe.id}>
                   <td>
                     <Link
@@ -87,9 +97,9 @@ export const RecipeList: React.FC = () => {
                   </td>
                   <td>
                     {recipe.menu_item
-                      ? `Menu: ${recipe.menu_item.name}`
+                      ? `Menu: ${typeof recipe.menu_item === 'object' ? recipe.menu_item.name : recipe.menu_item}`
                       : recipe.addon
-                      ? `Add-on: ${recipe.addon.name}`
+                      ? `Add-on: ${typeof recipe.addon === 'object' ? recipe.addon.name : recipe.addon}`
                       : '—'}
                   </td>
                   <td style={{ textAlign: 'right' }}>

@@ -71,15 +71,20 @@ export const StockCard: React.FC = () => {
   const transactions = data?.transactions || [];
   const types = data?.types || [];
 
+  // Safe numeric baseline casting for ingredient stats
+  const currentStock = Number(ingredient?.current_stock ?? 0);
+  const minStock = Number(ingredient?.minimum_stock ?? 0);
+  const avgCost = Number(ingredient?.average_unit_cost ?? 0);
+
   return (
     <>
       <div className="page-heading">
         <div>
           <h1>Stock Card — {ingredient?.name}</h1>
           <p style={{ color: 'var(--gray-500)', fontSize: 'var(--font-size-sm)', marginTop: 'var(--space-1)' }}>
-            Balance: <strong>{ingredient?.current_stock ?? 0} {ingredient?.unit_of_measure}</strong>
-            {' · '}Min: {ingredient?.minimum_stock ?? 0}
-            {' · '}Avg cost: ₱{(ingredient?.average_unit_cost ?? 0).toFixed(2)}
+            Balance: <strong>{currentStock.toFixed(2)} {ingredient?.unit_of_measure}</strong>
+            {' · '}Min: {minStock.toFixed(2)}
+            {' · '}Avg cost: ₱{avgCost.toFixed(2)}
           </p>
         </div>
         <Link className="btn btn-primary" to="/inventory/transactions/create">
@@ -182,27 +187,31 @@ export const StockCard: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              transactions.map((txn: StockCardTransaction) => {
-                const isNegative = txn.quantity < 0;
+              transactions.map((txn: StockCardTransaction | any) => {
+                const qty = Number(txn.quantity ?? 0);
+                const unitCost = txn.unit_cost !== null && txn.unit_cost !== undefined ? Number(txn.unit_cost) : null;
+                const resultingBal = Number(txn.resulting_balance ?? txn.running_balance ?? 0);
+                const isNegative = qty < 0;
+
                 return (
                   <tr key={txn.id}>
-                    <td>{new Date(txn.created_at).toLocaleString()}</td>
-                    <td>{txn.transaction_type_display}</td>
+                    <td>{txn.created_at ? new Date(txn.created_at).toLocaleString() : '—'}</td>
+                    <td>{txn.transaction_type_display || txn.transaction_type || '—'}</td>
                     <td
                       style={{
                         textAlign: 'right',
                         color: isNegative ? 'var(--color-error)' : 'var(--tapsi-700)',
                       }}
                     >
-                      {txn.quantity.toFixed(2)}
+                      {qty.toFixed(2)}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      {txn.unit_cost !== null ? `₱${txn.unit_cost.toFixed(2)}` : '—'}
+                      {unitCost !== null && !isNaN(unitCost) ? `₱${unitCost.toFixed(2)}` : '—'}
                     </td>
-                    <td style={{ textAlign: 'right' }}>{txn.resulting_balance.toFixed(2)}</td>
+                    <td style={{ textAlign: 'right' }}>{resultingBal.toFixed(2)}</td>
                     <td>{txn.reference || '—'}</td>
                     <td>{txn.reason || '—'}</td>
-                    <td>{txn.user_display || '—'}</td>
+                    <td>{txn.user_display || (typeof txn.user === 'object' ? txn.user?.username : txn.user) || '—'}</td>
                   </tr>
                 );
               })

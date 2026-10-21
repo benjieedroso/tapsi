@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from accounts.models import User
 from menu.models import AddOn, MenuItem
 from menu.views import TenantAwareViewSet
-from .serializers import OrderSerializer
+from .serializers import OrderSerializer, DiningTableSerializer
 from . import services
 from .forms import (
     DiscountForm, OrderItemForm, OrderForm, PaymentForm, RefundForm, TableForm,
@@ -19,7 +19,7 @@ from .models import (
     business_date_today, generate_order_number,
 )
 
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -696,3 +696,33 @@ class OrderViewSet(TenantAwareViewSet):
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(OrderSerializer(order, context={"request": request}).data)
+
+class DiningTableViewSet(viewsets.ModelViewSet):
+    serializer_class = DiningTableSerializer
+    queryset = DiningTable.objects.all()
+
+    def get_queryset(self):
+        # Adjust this to match how your project gets the current restaurant ID
+        restaurant_id = getattr(self.request, "restaurant_id", None) or getattr(self.request.user, "restaurant_id", 1)
+        return DiningTable.objects.filter(restaurant_id=restaurant_id).order_by("name")
+
+    def perform_create(self, serializer):
+        serializer.save(restaurant_id=self.get_restaurant_id())
+
+    def perform_create(self, serializer):
+        # Explicitly inject the restaurant_id when saving
+        restaurant_id = getattr(self.request, "restaurant_id", None) or getattr(self.request.user, "restaurant_id", 1)
+        serializer.save(restaurant_id=restaurant_id)
+
+    @action(detail=True, methods=["post"], url_path="set-status")
+    def set_status(self, request, pk=None):
+        """Allows changing the table status with a audit trail log."""
+        table = self.get_object()
+        new_status = request.data.get("status")
+        reason = request.data.get("reason", "")
+
+        try:
+            table.set_status(new_status, user=request.user, reason=reason)
+            return Response(DiningTableSerializer(table).data)
+        except DjangoValidationError as e:
+            raise DRFValidationError({"detail": e.messages})
