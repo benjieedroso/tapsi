@@ -202,76 +202,6 @@ class Order(models.Model):
         """FR-089: elapsed time since creation, for the kitchen queue."""
         return int((timezone.now() - self.created_at).total_seconds() // 60)
 
-    def recompute_totals(self, user=None):
-        """BR-011: subtotal = Σ(line qty × unit price + add-ons);
-        discount/VAT math per FR-087/FR-103."""
-        subtotal = sum(
-            (line.line_total for line in self.items.all()), Decimal("0")
-        )
-        self.subtotal = round_money(subtotal)
-
-        discount_amount = Decimal("0")
-        if self.discount_type in {self.DiscountType.SENIOR, self.DiscountType.PWD}:
-            discount_amount = round_money(subtotal * Decimal("0.20"))
-        elif self.discount_type == self.DiscountType.MANUAL and self.manual_discount_pct:
-            pct = self.manual_discount_pct
-            discount_amount = round_money(subtotal * pct / Decimal("100"))
-
-        self.discount_amount = round_money(discount_amount)
-
-        # BR-009: Senior/PWD discounts are VAT-exempt.
-        exempt = (
-            discount_amount
-            if self.discount_type in {self.DiscountType.SENIOR, self.DiscountType.PWD}
-            else Decimal("0")
-        )
-        manual = (
-            discount_amount
-            if self.discount_type == self.DiscountType.MANUAL
-            else Decimal("0")
-        )
-        vatable = subtotal - exempt - manual
-        vat = round_money(vatable * Decimal("0.12"))
-
-        self.vat_exempt_sales = round_money(exempt)
-        self.vatable_sales = round_money(vatable)
-        self.vat_amount = vat
-        self.total = round_money(subtotal - discount_amount)
-        self.save(
-            update_fields=[
-                "subtotal", "discount_amount", "vatable_sales",
-                "vat_exempt_sales", "vat_amount", "total",
-            ]
-        )
-
-    def apply_discount(self, discount_type, discount_ref="", pct=None, user=None):
-        """FR-087: Senior/PWD 20% + ID capture; manual with >10% approval."""
-        if self.status != self.Status.PENDING:
-            raise ValidationError("Discounts can only be applied to PENDING orders.")
-        if discount_type in {self.DiscountType.SENIOR, self.DiscountType.PWD}:
-            if not discount_ref.strip():
-                raise ValidationError("The discount ID number is required (RA 9994 / RA 10754).")
-            self.discount_type = discount_type
-            self.discount_ref = discount_ref.strip()
-            self.manual_discount_pct = None
-            self.discount_needs_approval = False
-            self.discount_approved_by = None
-        elif discount_type == self.DiscountType.MANUAL:
-            if pct is None:
-                raise ValidationError("A percentage is required for manual discounts.")
-            if pct <= 0 or pct > 100:
-                raise ValidationError("Manual discount percentage must be between 0 and 100.")
-            from accounts.models import User
-            self.discount_type = self.DiscountType.MANUAL
-            self.discount_ref = discount_ref.strip()
-            self.manual_discount_pct = pct
-            is_manager = user is not None and user.role in {User.Role.OWNER, User.Role.MANAGER}
-            self.discount_needs_approval = pct > 10 and not is_manager
-            self.discount_approved_by = user if is_manager and pct > 10 else None
-        else:
-            raise ValidationError("Invalid discount type.")
-        self.recompute_totals()
-
     def approve_discount(self, user):
         """Manager/Owner approval for manual discounts above 10%."""
         if not self.discount_needs_approval:
@@ -323,8 +253,121 @@ class Order(models.Model):
 
         return cancel_order(self, user, reason)
 
+    def apply_discount(self, discount_type, discount_ref="", pct=None, user=None):
+        """FR-087: Senior/PWD 20% + ID capture; manual with >10% approval."""
+        if self.status != self.Status.PENDING:
+            raise ValidationError("Discounts can only be applied to PENDING orders.")
 
-#New Code
+        # Normalize frontend variants if sent as strings
+        if discount_type in {"SENIOR_CITIZEN", "SENIOR"}:
+            discount_type = self.DiscountType.SENIOR
+        elif discount_type in {"PERCENTAGE", "FLAT", "MANUAL"}:
+            discount_type = self.DiscountType.MANUAL
+
+        if discount_type in {self.DiscountType.SENIOR, self.DiscountType.PWD}:
+            if not discount_ref.strip():
+                raise ValidationError("The discount ID number is required (RA 9994 / RA 10754).")
+            self.discount_type = discount_type
+            self.discount_ref = discount_ref.strip()
+            self.manual_discount_pct = None
+            self.discount_needs_approval = False
+            self.discount_approved_by = None
+        elif discount_type == self.DiscountType.MANUAL:
+            if pct is None:
+                raise ValidationError("A percentage is required for manual discounts.")
+            if pct <= 0 or pct > 100:
+                raise ValidationError("Manual discount percentage must be between 0 and 100.")
+            
+            from accounts.models import User
+            self.discount_type = self.DiscountType.MANUAL
+            self.discount_ref = discount_ref.strip()
+            self.manual_discount_pct = Decimal(str(pct))
+            
+            is_manager = user is not None and user.role in {User.Role.OWNER, User.Role.MANAGER}
+            self.discount_needs_approval = pct > 10 and not is_manager
+            self.discount_approved_by = user if is_manager and pct > 10 else None
+        else:
+            raise ValidationError("Invalid discount type.")
+
+        # Save the discount metadata fields first
+        self.save(update_fields=[
+            "discount_type", 
+            "discount_ref", 
+            "manual_discount_pct", 
+            "discount_needs_approval",
+            "discount_approved_by",
+            "updated_at"
+        ])
+        
+        # Immediately recompute subtotal, VAT, and totals
+        self.recompute_totals(user=user)
+
+    def recompute_totals(self, user=None):
+        """Recomputes subtotal, VAT, statutory discounts, and final total."""
+        items = self.items.all()
+        subtotal = sum((item.line_total for item in items), Decimal("0.00"))
+        self.subtotal = subtotal
+
+        discount_amt = Decimal("0.00")
+        vat_exempt_sales = Decimal("0.00")
+        vatable_sales = Decimal("0.00")
+        vat_amount = Decimal("0.00")
+
+        if self.discount_type in {self.DiscountType.SENIOR, self.DiscountType.PWD}:
+            # RA 9994 / RA 10754: VAT exemption first, then 20% discount on vatable base
+            vat_exempt_sales = round_money(subtotal / Decimal("1.12"))
+            vatable_sales = Decimal("0.00")
+            vat_amount = Decimal("0.00")
+            discount_amt = round_money(vat_exempt_sales * Decimal("0.20"))
+            self.total = round_money(vat_exempt_sales - discount_amt)
+        elif self.discount_type == self.DiscountType.MANUAL and self.manual_discount_pct:
+            discount_amt = round_money(subtotal * (self.manual_discount_pct / Decimal("100.00")))
+            vatable_sales = round_money(subtotal / Decimal("1.12"))
+            vat_amount = round_money(subtotal - vatable_sales)
+            self.total = round_money(subtotal - discount_amt)
+        else:
+            vatable_sales = round_money(subtotal / Decimal("1.12"))
+            vat_amount = round_money(subtotal - vatable_sales)
+            self.total = round_money(subtotal)
+
+        self.discount_amount = discount_amt
+        self.vat_exempt_sales = vat_exempt_sales
+        self.vatable_sales = vatable_sales
+        self.vat_amount = vat_amount if self.discount_type not in {self.DiscountType.SENIOR, self.DiscountType.PWD} else Decimal("0.00")
+
+        # Commit all computed financial fields to the database atomically
+        self.save(update_fields=[
+            "subtotal",
+            "discount_amount",
+            "vat_exempt_sales",
+            "vatable_sales",
+            "vat_amount",
+            "total",
+            "updated_at",
+        ])
+
+    @property
+    def paid(self):
+        """Sums all non-refund payments."""
+        if hasattr(self, 'payments'):
+            return float(sum((p.amount for p in self.payments.all() if p.amount > 0), Decimal("0.00")))
+        return 0.0
+
+    @property
+    def outstanding_balance(self):
+        """Calculates remaining balance."""
+        return float(self.total or 0) - self.paid
+
+    @property
+    def is_settled(self):
+        return self.outstanding_balance <= 0
+
+
+"""
+
+New Code Added For DRF - michael
+
+"""
 class OrderItem(models.Model):
     """FR-082: line with snapshot of name/price (BR-007)."""
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")

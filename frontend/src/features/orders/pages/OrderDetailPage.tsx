@@ -302,7 +302,7 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({ userRole }) =>
                 </tr>
               </thead>
               <tbody>
-                {order.items.length === 0 ? (
+                {(!order.items || order.items.length === 0) ? (
                   <tr>
                     <td colSpan={5} className="empty-state">
                       <h3>No items</h3>
@@ -421,10 +421,10 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({ userRole }) =>
 
             <div className="summary-row mt-2">
               <span className="text-muted">Paid</span>
-              <span>₱{parseFloat(order.paid_amount).toFixed(2)}</span>
+              <span>₱{parseFloat(order.paid).toFixed(2)}</span>
             </div>
 
-            {Number(order.paid_amount) > 0 && (
+            {Number(order.paid) > 0 && (
               <div className={`summary-row balance-row ${order.is_settled ? 'settled' : 'unsettled'}`}>
                 <span>Balance</span>
                 <span>₱{parseFloat(order.outstanding_balance).toFixed(2)}</span>

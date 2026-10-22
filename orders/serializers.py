@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Order, OrderItem, OrderItemAddon, generate_order_number, TableStatusLog, DiningTable
+from .models import Order, OrderItem, OrderItemAddon, generate_order_number, TableStatusLog, DiningTable, Payment
 
 
 class OrderItemAddonSerializer(serializers.ModelSerializer):
@@ -43,8 +43,10 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 
 class OrderSerializer(serializers.ModelSerializer):
-    items = OrderItemSerializer(many=True)
-
+    items = OrderItemSerializer(many=True, required=False, allow_null=True, default=list)
+    paid = serializers.SerializerMethodField()
+    outstanding_balance = serializers.SerializerMethodField()
+    
     class Meta:
         model = Order
         fields = [
@@ -66,6 +68,8 @@ class OrderSerializer(serializers.ModelSerializer):
             "vat_exempt_sales",
             "vat_amount",
             "total",
+            "paid",
+            "outstanding_balance",
             "customer_name",
             "customer_phone",
             "customer_address",
@@ -86,6 +90,8 @@ class OrderSerializer(serializers.ModelSerializer):
             "vat_exempt_sales",
             "vat_amount",
             "total",
+            "paid",
+            "outstanding_balance",
             "created_by",
             "created_at",
             "updated_at",
@@ -139,6 +145,19 @@ class OrderSerializer(serializers.ModelSerializer):
         order.recompute_totals(user=user)
         return order
 
+    def get_paid(self, obj):
+        try:
+            if hasattr(obj, 'payments') and obj.payments.exists():
+                return float(sum(p.amount for p in obj.payments.all()))
+        except Exception:
+            pass
+        return 0.0
+
+    def get_outstanding_balance(self, obj):
+        total = float(obj.total or 0)
+        paid = self.get_paid(obj)
+        return total - paid
+
 class TableStatusLogSerializer(serializers.ModelSerializer):
     changed_by_name = serializers.CharField(source="changed_by.get_full_name", read_only=True)
 
@@ -159,3 +178,18 @@ class DiningTableSerializer(serializers.ModelSerializer):
             "status_logs", "created_at", "updated_at"
         ]
         read_only_fields = ["restaurant_id", "created_at", "updated_at"]
+
+
+class PaymentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Payment
+        fields = [
+            "id", 
+            "method", 
+            "amount", 
+            "tendered", 
+            "change_given", 
+            "reference_no", 
+            "business_date", 
+            "created_at"
+        ]

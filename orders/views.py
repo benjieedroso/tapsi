@@ -9,7 +9,7 @@ from django.views.decorators.http import require_POST
 from accounts.models import User
 from menu.models import AddOn, MenuItem
 from menu.views import TenantAwareViewSet
-from .serializers import OrderSerializer, DiningTableSerializer
+from .serializers import OrderSerializer, DiningTableSerializer, OrderItemSerializer, PaymentSerializer
 from . import services
 from .forms import (
     DiscountForm, OrderItemForm, OrderForm, PaymentForm, RefundForm, TableForm,
@@ -19,7 +19,7 @@ from .models import (
     business_date_today, generate_order_number,
 )
 
-from rest_framework import status, viewsets
+from rest_framework import status, viewsets, serializers
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
@@ -521,6 +521,17 @@ def receipt(request, pk, reprint=False):
 """
 New Code
 """
+class ApplyDiscountSerializer(serializers.Serializer):
+    discount_type = serializers.CharField()
+    pct = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
+    value = serializers.DecimalField(max_digits=5, decimal_places=2, required=False, allow_null=True)
+    discount_ref = serializers.CharField(required=False, allow_blank=True)
+    ref = serializers.CharField(required=False, allow_blank=True)
+
+    def validate(self, attrs):
+        attrs['pct'] = attrs.get('pct') or attrs.get('value')
+        attrs['discount_ref'] = attrs.get('discount_ref') or attrs.get('ref', '')
+        return attrs
 
 class OrderViewSet(TenantAwareViewSet):
     serializer_class = OrderSerializer
@@ -532,7 +543,6 @@ class OrderViewSet(TenantAwareViewSet):
         )
 
         status_param = self.request.query_params.get("status")
-        # Handle both ?type= and ?order_type= from query params
         order_type = self.request.query_params.get("type") or self.request.query_params.get("order_type")
         business_date = self.request.query_params.get("date")
 
@@ -545,12 +555,28 @@ class OrderViewSet(TenantAwareViewSet):
 
         return queryset
 
-    def perform_create(self, serializer):
-        serializer.save()
+    def _get_order_response(self, order, request):
+        """Helper used ONLY for the initial page load (retrieve) to provide full metadata."""
+        fresh_order = self.get_queryset().get(pk=order.pk)
+        rid = self.get_restaurant_id()
+        
+        serializer = self.get_serializer(fresh_order)
+        available_tables = [{"id": t.id, "name": t.name} for t in DiningTable.objects.filter(restaurant_id=rid, is_active=True)]
+        
+        menu_items = [
+            {"id": m.id, "name": m.name, "price": str(m.price)} 
+            for m in MenuItem.objects.filter(restaurant_id=rid, is_deleted=False, is_available=True)
+        ]
+
+        return Response({
+            "order": serializer.data,
+            "shortfalls": [],
+            "availableTables": available_tables,
+            "menuItems": menu_items,
+        })
 
     # =========================================================================
     # KITCHEN QUEUE ENDPOINTS
-    # GET /api/v1/orders/kitchen/
     # =========================================================================
     @action(detail=False, methods=["get"], url_path="kitchen")
     def kitchen_queue(self, request):
@@ -560,14 +586,11 @@ class OrderViewSet(TenantAwareViewSet):
             status__in=["PENDING", "PREPARING"]
         ).order_by("created_at")
         
-        # Replace with your KitchenOrderSerializer if you have a distinct one
         serializer = OrderSerializer(orders, many=True, context={"request": request})
         return Response(serializer.data)
 
-    # POST /api/v1/orders/kitchen/{id}/advance/
     @action(detail=True, methods=["post"], url_path=r"kitchen/(?P<order_id>\d+)/advance", url_name="kitchen-advance")
     def kitchen_advance(self, request, pk=None):
-        # DRF will match /kitchen/{id}/advance/ on the viewset
         order = self.get_object()
         if order.status == "PENDING":
             order.transition_to("PREPARING", user=request.user)
@@ -580,14 +603,11 @@ class OrderViewSet(TenantAwareViewSet):
 
     # =========================================================================
     # RECEIPT ENDPOINT
-    # GET /api/v1/orders/{id}/receipt/
     # =========================================================================
     @action(detail=True, methods=["get"], url_path="receipt")
     def receipt(self, request, pk=None):
         order = self.get_object()
-        restaurant = order.restaurant
         
-        # Check reprint count
         reprint = order.receipt_reprinted_count > 0
         order.receipt_reprinted_count += 1
         order.save(update_fields=["receipt_reprinted_count"])
@@ -596,55 +616,93 @@ class OrderViewSet(TenantAwareViewSet):
             "order": OrderSerializer(order, context={"request": request}).data,
             "reprint": reprint,
             "restaurant": {
-                "name": getattr(restaurant, "name", "TAPSI Restaurant"),
-                "address": getattr(restaurant, "address", ""),
-                "contact_number": getattr(restaurant, "contact_number", ""),
-                "tin": getattr(restaurant, "tin", ""),
-                "is_vat_registered": getattr(restaurant, "is_vat_registered", True),
-                "receipt_footer": getattr(restaurant, "receipt_footer", "Thank you for dining with us!"),
+                "name": "TAPSI Restaurant",
+                "address": "Main Branch",
+                "contact_number": "",
+                "tin": "",
+                "is_vat_registered": True,
+                "receipt_footer": "Thank you for dining with us!",
             },
-            "items": [],  # Pass serialized items
-            "payments": [], # Pass serialized payments
+            "items": OrderItemSerializer(order.items.all(), many=True, context={"request": request}).data,
+            "payments": PaymentSerializer(order.payments.all(), many=True, context={"request": request}).data if hasattr(order, 'payments') else [],
         }
         return Response(data)
 
     # =========================================================================
-    # ITEM, PAYMENT, & ORDER MANAGEMENT
+    # ITEM, PAYMENT, & ORDER MANAGEMENT (Returning raw OrderSerializer data)
     # =========================================================================
     @action(detail=True, methods=["post"], url_path="items")
     def add_item(self, request, pk=None):
         order = self.get_object()
-        # Item creation logic
-        return Response(OrderSerializer(order, context={"request": request}).data)
+        menu_item_id = request.data.get("item_id") or request.data.get("menu_item")
+        quantity = int(request.data.get("quantity", 1))
+        notes = request.data.get("notes", "")
+
+        if not menu_item_id:
+            return Response({"detail": "Menu item is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            menu_item = MenuItem.objects.get(pk=menu_item_id, restaurant_id=order.restaurant_id)
+        except MenuItem.DoesNotExist:
+            return Response({"detail": "Menu item not found."}, status=status.HTTP_404_NOT_FOUND)
+
+        OrderItem.objects.create(
+            order=order,
+            menu_item=menu_item,
+            item_name=menu_item.name,
+            unit_price=menu_item.price,
+            quantity=quantity,
+            notes=notes,
+        )
+
+        # Clear stale cache by re-fetching from DB before recomputing totals
+        order = self.get_queryset().get(pk=order.pk)
+        order.recompute_totals(user=request.user)
+
+        # Fetch fresh instance for response serialization
+        fresh_order = self.get_queryset().get(pk=order.pk)
+        return Response(OrderSerializer(fresh_order, context={"request": request}).data)
 
     @action(detail=True, methods=["delete"], url_path=r"items/(?P<item_id>\d+)")
     def remove_item(self, request, pk=None, item_id=None):
         order = self.get_object()
-        # Item removal logic
-        return Response(OrderSerializer(order, context={"request": request}).data)
+        
+        try:
+            item = OrderItem.objects.get(pk=item_id, order=order)
+            item.delete()
+        except OrderItem.DoesNotExist:
+            return Response({"detail": "Order item not found."}, status=status.HTTP_404_NOT_FOUND)
 
-    @action(detail=True, methods=["post"], url_path="payments")
-    def record_payment(self, request, pk=None):
-        order = self.get_object()
-        # Payment recording logic
-        return Response(OrderSerializer(order, context={"request": request}).data)
+        order = self.get_queryset().get(pk=order.pk)
+        order.recompute_totals(user=request.user)
+
+        fresh_order = self.get_queryset().get(pk=order.pk)
+        return Response(OrderSerializer(fresh_order, context={"request": request}).data)
+    
 
     @action(detail=True, methods=["post"], url_path="complete")
     def complete(self, request, pk=None):
         order = self.get_object()
-        order.transition_to("COMPLETED", user=request.user)
-        return Response(OrderSerializer(order, context={"request": request}).data)
+        try:
+            order.transition_to("COMPLETED", user=request.user)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        fresh_order = self.get_queryset().get(pk=order.pk)
+        return Response(OrderSerializer(fresh_order, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="cancel")
     def cancel(self, request, pk=None):
         order = self.get_object()
         reason = request.data.get("reason", "")
-        order.transition_to("CANCELLED", user=request.user, reason=reason)
-        return Response(OrderSerializer(order, context={"request": request}).data)
+        try:
+            order.transition_to("CANCELLED", user=request.user, reason=reason)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        fresh_order = self.get_queryset().get(pk=order.pk)
+        return Response(OrderSerializer(fresh_order, context={"request": request}).data)
 
     @action(detail=True, methods=["patch"], url_path="update-status")
     def update_status(self, request, pk=None):
-        """FR-083..FR-085: Transition order status using model state machine."""
         order = self.get_object()
         new_status = request.data.get("status")
         reason = request.data.get("reason", "")
@@ -657,37 +715,42 @@ class OrderViewSet(TenantAwareViewSet):
         except ValidationError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(OrderSerializer(order, context={"request": request}).data)
+        fresh_order = self.get_queryset().get(pk=order.pk)
+        return Response(OrderSerializer(fresh_order, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="discount")
     def apply_discount(self, request, pk=None):
-        """FR-087: Apply Senior, PWD, or Manual discount to a PENDING order."""
         order = self.get_object()
-        discount_type = request.data.get("discount_type")
-        discount_ref = request.data.get("discount_ref", "")
-        pct = request.data.get("pct") or request.data.get("value")
+        
+        # Validate through serializer to handle all types and normalization dynamically
+        serializer = ApplyDiscountSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        if pct is not None:
-            try:
-                pct = float(pct)
-            except (TypeError, ValueError):
-                raise ValidationError({"pct": "Invalid percentage value."})
-
+        validated_data = serializer.validated_data
+        
         try:
             order.apply_discount(
-                discount_type=discount_type,
-                discount_ref=discount_ref,
-                pct=pct,
+                discount_type=validated_data.get("discount_type"),
+                discount_ref=validated_data.get("discount_ref", ""),
+                pct=validated_data.get("pct"),
                 user=request.user,
             )
-        except ValidationError as e:
-            return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
+        except (DjangoValidationError, DRFValidationError) as e:
+            msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+            return Response({"detail": msg}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(OrderSerializer(order, context={"request": request}).data)
+        # Force refresh and recompute totals
+        order = self.get_queryset().get(pk=order.pk)
+        order.recompute_totals(user=request.user)
+
+        fresh_order = self.get_queryset().get(pk=order.pk)
+        return Response(OrderSerializer(fresh_order, context={"request": request}).data)
 
     @action(detail=True, methods=["post"], url_path="approve-discount")
     def approve_discount(self, request, pk=None):
-        """Approve manual discounts exceeding 10% (Manager/Owner only)."""
         order = self.get_object()
 
         try:
@@ -695,7 +758,73 @@ class OrderViewSet(TenantAwareViewSet):
         except ValidationError as e:
             return Response({"detail": e.message}, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(OrderSerializer(order, context={"request": request}).data)
+        fresh_order = self.get_queryset().get(pk=order.pk)
+        return Response(OrderSerializer(fresh_order, context={"request": request}).data)
+
+    @action(detail=False, methods=["get"], url_path="create/meta")
+    def create_meta(self, request):
+        rid = self.get_restaurant_id()
+        tables = DiningTable.objects.filter(restaurant_id=rid, is_active=True)
+        table_options = [{"id": t.id, "name": t.name} for t in tables]
+        return Response({
+            "available_tables": table_options
+        })
+
+    def perform_create(self, serializer):
+        serializer.save()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+        
+        status_choices = [
+            {"value": "PENDING", "label": "Pending"},
+            {"value": "PREPARING", "label": "Preparing"},
+            {"value": "READY", "label": "Ready"},
+            {"value": "COMPLETED", "label": "Completed"},
+            {"value": "CANCELLED", "label": "Cancelled"},
+        ]
+        type_choices = [
+            {"value": "DINE_IN", "label": "Dine-In"},
+            {"value": "TAKE_OUT", "label": "Take-Out"},
+            {"value": "DELIVERY", "label": "Delivery"},
+        ]
+        
+        return Response({
+            "orders": serializer.data,
+            "filters": {
+                "statusChoices": status_choices,
+                "typeChoices": type_choices,
+            }
+        })
+
+    def retrieve(self, request, *args, **kwargs):
+        return self._get_order_response(self.get_object(), request)
+
+    @action(detail=True, methods=["post"], url_path="payments")
+    def record_payment(self, request, pk=None):
+        order = self.get_object()
+        method = request.data.get("method", "CASH")
+        amount = request.data.get("amount")
+
+        if not amount:
+            return Response({"detail": "Payment amount is required."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            amount_val = float(amount)
+        except (TypeError, ValueError):
+            return Response({"detail": "Invalid payment amount."}, status=status.HTTP_400_BAD_REQUEST)
+
+        Payment.objects.create(
+            order=order,
+            restaurant_id=order.restaurant_id,  # <-- Pass the restaurant_id here
+            method=method,
+            amount=amount_val,
+        )
+
+        order.recompute_totals(user=request.user)
+        fresh_order = self.get_queryset().get(pk=order.pk)
+        return Response(OrderSerializer(fresh_order, context={"request": request}).data)
 
 class DiningTableViewSet(viewsets.ModelViewSet):
     serializer_class = DiningTableSerializer
@@ -726,3 +855,20 @@ class DiningTableViewSet(viewsets.ModelViewSet):
             return Response(DiningTableSerializer(table).data)
         except DjangoValidationError as e:
             raise DRFValidationError({"detail": e.messages})
+
+    def retrieve(self, request, *args, **kwargs):
+        order = self.get_object()
+        rid = self.get_restaurant_id()
+        
+        # Gather the auxiliary data your frontend expects
+        shortfalls = [] # Compute or fetch shortfalls if applicable
+        available_tables = [{"id": t.id, "name": t.name} for t in DiningTable.objects.filter(restaurant_id=rid, is_active=True)]
+        menu_items = [{"id": m.id, "name": m.name, "price": str(m.price)} for m in MenuItem.objects.filter(restaurant_id=rid, is_available=True)]
+
+        serializer = self.get_serializer(order)
+        return Response({
+            "order": serializer.data,
+            "shortfalls": shortfalls,
+            "availableTables": available_tables,
+            "menuItems": menu_items,
+        })

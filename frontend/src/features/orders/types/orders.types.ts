@@ -69,7 +69,7 @@ export interface OrderDetail {
   discount_needs_approval: boolean;
   vat_amount: string;
   total: string;
-  paid_amount: string;
+  paid: string;
   outstanding_balance: string;
   is_settled: boolean;
 

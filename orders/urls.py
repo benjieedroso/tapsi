@@ -11,6 +11,7 @@ app_name = "orders"
 urlpatterns = [
     # DRF API Routes -> /orders/api/v1/orders/
     path("", include(router.urls)),
+    path("create/meta/", views.order_create, name="order_create"),
     # Tables (FR-090..FR-095)
     path("tables/", views.table_list, name="table_list"),
     path("tables/new/", views.table_create, name="table_create"),

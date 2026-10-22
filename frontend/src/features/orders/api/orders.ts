@@ -56,7 +56,7 @@ export const ordersApi = {
 
   recordPayment: async (orderId: number, data: { method: string; amount: number }): Promise<OrderDetail> => {
     const response = await apiClient.post(`/api/v1/orders/${orderId}/payments/`, data);
-    return response.data;
+    return response.data; // This returns the updated OrderDetail object containing the new 'paid' sum
   },
 
   refundPayment: async (paymentId: number, reason: string): Promise<void> => {
@@ -64,7 +64,11 @@ export const ordersApi = {
   },
 
   applyDiscount: async (orderId: number, data: { discount_type: string; value: number; ref?: string }): Promise<OrderDetail> => {
-    const response = await apiClient.post(`/api/v1/orders/${orderId}/discount/`, data);
+    const response = await apiClient.post(`/api/v1/orders/${orderId}/discount/`, {
+      discount_type: data.discount_type,
+      pct: data.value,
+      discount_ref: data.ref, // Explicitly map 'ref' to 'discount_ref'
+    });
     return response.data;
   },
   // Order Form API
@@ -89,7 +93,6 @@ export const ordersApi = {
     const response = await apiClient.get(`/api/v1/orders/${orderId}/receipt/`);
     return response.data;
   },
-
 
   // Table Form API
   getTableDetail: async (id: number): Promise<TableDetail> => {
