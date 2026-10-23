@@ -1,5 +1,5 @@
 import { apiClient } from '../../../api/client';
-import type { AttendanceDetail, AttendanceUpdatePayload, AttendanceListResponse, EmployeeDetail, EmployeeFormData, EmployeeListResponse } from '../types/employees.types';
+import type { AttendanceDetail, AttendanceUpdatePayload, AttendanceRecord, EmployeeDetail, EmployeeFormData, EmployeeListResponse } from '../types/employees.types';
 
 export const employeesApi = {
   getAttendanceDetail: async (id: number): Promise<AttendanceDetail> => {
@@ -12,13 +12,24 @@ export const employeesApi = {
     return response.data;
   },
 
-  getAttendanceList: async (params?: { month?: string }): Promise<AttendanceListResponse> => {
+  getAttendanceList: async (params?: { month?: string }): Promise<AttendanceRecord[]> => {
     const response = await apiClient.get('/api/v1/employees/attendance/', { params });
-    return response.data;
+    const data = response.data;
+
+    // Handle plain arrays, paginated results, or object responses
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.results)) return data.results;
+    if (Array.isArray(data.records)) return data.records;
+    
+    return [];
   },
 
-  clockAttendance: async (action: 'in' | 'out'): Promise<void> => {
-    await apiClient.post('/api/v1/employees/attendance/clock/', { action });
+  clockIn: async (): Promise<void> => {
+    await apiClient.post('/api/v1/employees/attendance/clock-in/', {});
+  },
+
+  clockOut: async (): Promise<void> => {
+    await apiClient.post('/api/v1/employees/attendance/clock-out/', {});
   },
 
   getEmployeeDetail: async (id: number): Promise<EmployeeDetail> => {

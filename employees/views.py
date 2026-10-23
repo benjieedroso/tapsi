@@ -10,13 +10,18 @@ from accounts.models import User
 from .forms import AttendanceForm, EmployeeForm
 from .models import Attendance, Employee
 
-from rest_framework import status
+from rest_framework import status, viewsets, permissions
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
 from .serializers import AttendanceSerializer, EmployeeSerializer
 
 from menu.views import TenantAwareViewSet
+
+import secrets
+import string
+from accounts.models import User
 
 
 def _is_manager_or_above(user):
@@ -182,15 +187,60 @@ class EmployeeViewSet(TenantAwareViewSet):
         # Soft delete execution
         instance.soft_delete()
 
+    def perform_create(self, serializer):
+            user = self.request.user
+            if user.role not in {User.Role.OWNER, User.Role.MANAGER}:
+                raise PermissionDenied("Only Owners and Managers can create employees.")
+    
+            # Get employee details from request payload
+            email = self.request.data.get("email")
+            full_name = self.request.data.get("full_name")
+            role = self.request.data.get("role", User.Role.STAFF)
+            rid = self.get_restaurant_id()
+    
+            employee_user = None
+            if email:
+                # Check if user already exists to prevent duplicate key errors
+                employee_user = User.objects.filter(email=email).first()
+                if not employee_user:
+                    # Generate a secure temporary password for the employee
+                    temp_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(10))
+                    
+                    # Automatically create the login user account
+                    employee_user = User.objects.create_user(
+                        email=email,
+                        username=email,
+                        password=temp_password,
+                        role=role,
+                        restaurant_id=rid
+                    )
+    
+            # Save the employee and bind the user foreign key automatically
+            serializer.save(
+                restaurant_id=rid,
+                user=employee_user
+            )
+
 
 class AttendanceViewSet(TenantAwareViewSet):
     serializer_class = AttendanceSerializer
+    #permission_classes = [IsAuthenticated]
+
 
     def get_queryset(self):
         rid = self.get_restaurant_id()
+        user = self.request.user
         queryset = Attendance.objects.filter(
             restaurant_id=rid
         ).select_related("employee")
+
+        # Restrict regular staff/cashiers to their own attendance records only
+        if not user.is_authenticated or user.role not in {User.Role.OWNER, User.Role.MANAGER}:
+            employee = getattr(user, "employee_profile", None)
+            if employee:
+                queryset = queryset.filter(employee=employee)
+            else:
+                queryset = queryset.none()
 
         # Optional query parameters filtering
         employee_id = self.request.query_params.get("employee")
@@ -212,16 +262,19 @@ class AttendanceViewSet(TenantAwareViewSet):
         rid = self.get_restaurant_id()
         employee_id = request.data.get("employee_id")
 
-        if not employee_id:
-            raise ValidationError({"employee_id": "Employee ID is required."})
-
-        employee = Employee.objects.filter(
-            id=employee_id, restaurant_id=rid, is_deleted=False
-        ).first()
+        if employee_id:
+            employee = Employee.objects.filter(
+                id=employee_id, restaurant_id=rid, is_deleted=False
+            ).first()
+        else:
+            # Automatically find the employee record linked to the logged-in user
+            employee = Employee.objects.filter(
+                user=request.user, restaurant_id=rid, is_deleted=False
+            ).first()
 
         if not employee:
             return Response(
-                {"detail": "Active employee not found."},
+                {"detail": "No active employee profile linked to your account. Please provide an Employee ID or link your user account."},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
@@ -249,13 +302,25 @@ class AttendanceViewSet(TenantAwareViewSet):
         rid = self.get_restaurant_id()
         employee_id = request.data.get("employee_id")
 
-        if not employee_id:
-            raise ValidationError({"employee_id": "Employee ID is required."})
+        if employee_id:
+            employee = Employee.objects.filter(
+                id=employee_id, restaurant_id=rid, is_deleted=False
+            ).first()
+        else:
+            employee = Employee.objects.filter(
+                user=request.user, restaurant_id=rid, is_deleted=False
+            ).first()
+
+        if not employee:
+            return Response(
+                {"detail": "No active employee profile linked to your account."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         today = timezone.localdate()
         attendance = Attendance.objects.filter(
             restaurant_id=rid,
-            employee_id=employee_id,
+            employee=employee,
             work_date=today,
         ).first()
 
@@ -275,3 +340,5 @@ class AttendanceViewSet(TenantAwareViewSet):
         attendance.save()
 
         return Response(AttendanceSerializer(attendance, context={"request": request}).data)
+
+

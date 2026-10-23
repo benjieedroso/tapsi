@@ -14,6 +14,13 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  // Attach restaurant tenant header if stored
+  const restaurantId = localStorage.getItem('restaurant_id');
+  if (restaurantId) {
+    config.headers['X-Restaurant-ID'] = restaurantId;
+  }
+
   return config;
 });
 

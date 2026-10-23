@@ -16,6 +16,7 @@ export const ExpenseForm: React.FC = () => {
   const [expenseDate, setExpenseDate] = useState<string>(
     new Date().toISOString().split('T')[0]
   );
+  
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [existingReceiptUrl, setExistingReceiptUrl] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState<boolean>(false);
@@ -29,7 +30,7 @@ export const ExpenseForm: React.FC = () => {
     const initData = async () => {
       try {
         const cats = await expensesApi.getCategories();
-        setCategories(cats);
+        setCategories(Array.isArray(cats) ? cats : []);
 
         if (id) {
           const detail = await expensesApi.getExpenseDetail(Number(id));
@@ -132,11 +133,12 @@ export const ExpenseForm: React.FC = () => {
               required
             >
               <option value="">---------</option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.name}
-                </option>
-              ))}
+              {Array.isArray(categories) &&
+                categories.map((cat, index) => (
+                  <option key={cat.value || index} value={cat.value}>
+                    {cat.label}
+                  </option>
+                ))}
             </select>
             {fieldErrors.category && (
               <ul className="errorlist">

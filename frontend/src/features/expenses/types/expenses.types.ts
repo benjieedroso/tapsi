@@ -1,6 +1,8 @@
 export interface ExpenseCategory {
   id: number;
   name: string;
+  label: string;
+  value: string;
 }
 
 export interface ExpenseDetail {

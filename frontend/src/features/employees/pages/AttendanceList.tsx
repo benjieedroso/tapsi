@@ -1,7 +1,9 @@
+// src/components/AttendanceList.tsx
+
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { employeesApi } from '../api/employees';
-import type { AttendanceRecord, AttendanceListResponse } from '../types/employees.types';
+import type { AttendanceRecord } from '../types/employees.types';
 
 interface AttendanceListProps {
   userRole?: 'OWNER' | 'MANAGER' | 'CASHIER' | 'STAFF';
@@ -10,7 +12,7 @@ interface AttendanceListProps {
 export const AttendanceList: React.FC<AttendanceListProps> = ({ userRole }) => {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const [data, setData] = useState<AttendanceListResponse | null>(null);
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,14 +20,13 @@ export const AttendanceList: React.FC<AttendanceListProps> = ({ userRole }) => {
   const [clocking, setClocking] = useState<boolean>(false);
 
   const fetchAttendance = useCallback(async () => {
-    setLoading(true);
     try {
       const params: { month?: string } = {};
       const monthParam = searchParams.get('month');
       if (monthParam) params.month = monthParam;
 
-      const res = await employeesApi.getAttendanceList(params);
-      setData(res);
+      const res: AttendanceRecord[] = await employeesApi.getAttendanceList(params);
+      setRecords(res);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load attendance records.');
@@ -40,11 +41,16 @@ export const AttendanceList: React.FC<AttendanceListProps> = ({ userRole }) => {
 
   const handleClock = async (action: 'in' | 'out') => {
     setClocking(true);
+    setError(null);
     try {
-      await employeesApi.clockAttendance(action);
+      if (action === 'in') {
+        await employeesApi.clockIn();
+      } else {
+        await employeesApi.clockOut();
+      }
       await fetchAttendance();
     } catch (err: any) {
-      alert(err.response?.data?.detail || `Failed to clock ${action}.`);
+      setError(err.response?.data?.detail || `Failed to clock ${action}.`);
     } finally {
       setClocking(false);
     }
@@ -58,9 +64,8 @@ export const AttendanceList: React.FC<AttendanceListProps> = ({ userRole }) => {
   };
 
   const isOwnerOrManager = userRole === 'OWNER' || userRole === 'MANAGER';
-  const records = data?.records || [];
 
-  if (loading && !data) {
+  if (loading && records.length === 0) {
     return <div style={{ padding: 'var(--space-4)' }}>Loading attendance...</div>;
   }
 
@@ -73,14 +78,14 @@ export const AttendanceList: React.FC<AttendanceListProps> = ({ userRole }) => {
             Clock in and out for your linked employee profile (FR-122).
           </p>
         </div>
-        <div style={{ display: 'flex', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center' }}>
           <button
             type="button"
             className="btn btn-primary"
             onClick={() => handleClock('in')}
             disabled={clocking}
           >
-            Clock in
+            {clocking ? 'Processing...' : 'Clock in'}
           </button>
           <button
             type="button"
@@ -88,7 +93,7 @@ export const AttendanceList: React.FC<AttendanceListProps> = ({ userRole }) => {
             onClick={() => handleClock('out')}
             disabled={clocking}
           >
-            Clock out
+            {clocking ? 'Processing...' : 'Clock out'}
           </button>
         </div>
       </div>

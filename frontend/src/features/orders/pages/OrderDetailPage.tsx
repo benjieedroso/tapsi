@@ -34,6 +34,11 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({ userRole }) =>
 
   const [refundReasons, setRefundReasons] = useState<Record<number, string>>({});
 
+  // Cancel Modal State
+  const [showCancelModal, setShowCancelModal] = useState<boolean>(false);
+  const [cancelReason, setCancelReason] = useState<string>('');
+  const [isSubmittingCancel, setIsSubmittingCancel] = useState<boolean>(false);
+
   const fetchOrderData = useCallback(async () => {
     if (!orderId) return;
     try {
@@ -70,14 +75,28 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({ userRole }) =>
     }
   };
 
-  const handleCancel = async () => {
-    const reason = prompt(`Reason for cancelling ${order.order_number}?`);
-    if (!reason) return;
+  const openCancelModal = () => {
+    setCancelReason('');
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cancelReason.trim()) {
+      alert('Please state a reason for cancelling.');
+      return;
+    }
+    
+    setIsSubmittingCancel(true);
     try {
-      const updated = await ordersApi.cancelOrder(orderId, reason);
+      const updated = await ordersApi.cancelOrder(orderId, cancelReason.trim());
       setOrder(updated);
+      setShowCancelModal(false);
+      setCancelReason('');
     } catch (err: any) {
       alert(err.response?.data?.detail || 'Failed to cancel order.');
+    } finally {
+      setIsSubmittingCancel(false);
     }
   };
 
@@ -217,19 +236,19 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({ userRole }) =>
                 </button>
               )}
               {isOwnerOrManager && (
-                <button onClick={handleCancel} className="btn btn-secondary btn-danger-text">
+                <button onClick={openCancelModal} className="btn btn-secondary btn-danger-text">
                   Cancel order
                 </button>
               )}
             </>
           )}
 
-          {order.status === 'COMPLETED' && (
+         {order.status === 'COMPLETED' && (
             <>
               <Link className="btn btn-secondary" to={`/orders/${order.id}/receipt`}>
                 Receipt
               </Link>
-              <Link className="btn btn-ghost btn-sm" to={`/orders/${order.id}/receipt/reprint`}>
+              <Link className="btn btn-ghost btn-sm" to={`/orders/${order.id}/receipt`}>
                 Reprint
               </Link>
             </>
@@ -591,6 +610,63 @@ export const OrderDetailPage: React.FC<OrderDetailPageProps> = ({ userRole }) =>
           </tbody>
         </table>
       </div>
+
+
+      {/* Cancellation Reason Modal */}
+      {showCancelModal && (
+        <div className="modal-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="table-card p-4" style={{ width: '100%', maxWidth: '420px', backgroundColor: '#fff', borderRadius: '8px' }}>
+            <h3 className="mb-2">Cancel Order {order.order_number}</h3>
+            <p className="text-muted mb-4" style={{ fontSize: '0.9rem' }}>
+              Please enter the official reason for cancelling this order (required for audit logs).
+            </p>
+            
+            <form onSubmit={handleConfirmCancel} className="form-stack">
+              <div className="field">
+                <label style={{ fontWeight: 600, display: 'block', marginBottom: '6px' }}>Reason for cancellation</label>
+                <input
+                  type="text"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="input"
+                  placeholder="E.g., Customer changed mind / duplicate entry"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div className="flex-end gap-2 mt-4" style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowCancelModal(false)}
+                  className="btn btn-ghost btn-sm"
+                  disabled={isSubmittingCancel}
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary btn-sm btn-danger-bg"
+                  disabled={isSubmittingCancel}
+                >
+                  {isSubmittingCancel ? 'Cancelling...' : 'Confirm Cancellation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

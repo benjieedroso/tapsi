@@ -146,14 +146,35 @@ class ExpenseViewSet(TenantAwareViewSet):
     def get_queryset(self):
         queryset = Expense.objects.filter(
             restaurant_id=self.get_restaurant_id()
-        ).select_related("created_by", "approved_by")
+        ).select_related("created_by", "approved_by").order_by("-expense_date", "-created_at")
 
-        # Optional query param filters for date range & status
+        # Optional query param filters for category, status & date range
+        category_param = self.request.query_params.get("category")
         status_param = self.request.query_params.get("status")
+        date_from = self.request.query_params.get("from")
+        date_to = self.request.query_params.get("to")
+
+        if category_param:
+            queryset = queryset.filter(category=category_param)
         if status_param:
             queryset = queryset.filter(status=status_param)
+        if date_from:
+            queryset = queryset.filter(expense_date__gte=date_from)
+        if date_to:
+            queryset = queryset.filter(expense_date__lte=date_to)
 
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        """Returns expenses list combined with dropdown options for the frontend UI."""
+        queryset = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(queryset, many=True)
+
+        return Response({
+            "expenses": serializer.data,
+            "categories": Expense.Category.choices,
+            "statuses": Expense.Status.choices,
+        })
 
     def perform_create(self, serializer):
         # Automatically attach restaurant_id and created_by user from request
@@ -178,3 +199,12 @@ class ExpenseViewSet(TenantAwareViewSet):
         expense.save(update_fields=["status", "approved_by", "updated_at"])
 
         return Response(ExpenseSerializer(expense).data)
+
+    @action(detail=False, methods=["get"], url_path="categories")
+    def categories(self, request):
+        """Returns available expense categories for dropdown selection."""
+        category_choices = [
+            {"value": choice[0], "label": choice[1]} 
+            for choice in Expense.Category.choices
+        ]
+        return Response(category_choices)

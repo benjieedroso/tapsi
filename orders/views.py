@@ -561,7 +561,16 @@ class OrderViewSet(TenantAwareViewSet):
         rid = self.get_restaurant_id()
         
         serializer = self.get_serializer(fresh_order)
-        available_tables = [{"id": t.id, "name": t.name} for t in DiningTable.objects.filter(restaurant_id=rid, is_active=True)]
+        available_tables = [
+            {"id": t.id, "name": t.name} 
+            for t in DiningTable.objects.filter(
+                restaurant_id=rid, 
+                is_active=True, 
+                status="AVAILABLE"
+            ).exclude(
+                orders__status__in=["PENDING", "PREPARING", "READY"]
+            )
+        ]
         
         menu_items = [
             {"id": m.id, "name": m.name, "price": str(m.price)} 
@@ -589,15 +598,19 @@ class OrderViewSet(TenantAwareViewSet):
         serializer = OrderSerializer(orders, many=True, context={"request": request})
         return Response(serializer.data)
 
-    @action(detail=True, methods=["post"], url_path=r"kitchen/(?P<order_id>\d+)/advance", url_name="kitchen-advance")
-    def kitchen_advance(self, request, pk=None):
-        order = self.get_object()
+    @action(detail=False, methods=["post"], url_path=r"kitchen/(?P<order_id>\d+)/advance")
+    def kitchen_advance(self, request, order_id=None):
+        try:
+            order = Order.objects.get(pk=order_id, restaurant_id=self.get_restaurant_id())
+        except Order.DoesNotExist:
+            return Response({"detail": "Order not found."}, status=status.HTTP_404_NOT_FOUND)
+
         if order.status == "PENDING":
             order.transition_to("PREPARING", user=request.user)
         elif order.status == "PREPARING":
             order.transition_to("READY", user=request.user)
         else:
-            return Response({"detail": "Order is not in a printable queue status."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({"detail": "Order is not in a printable/advanceable queue status."}, status=status.HTTP_400_BAD_REQUEST)
         
         return Response(OrderSerializer(order, context={"request": request}).data)
 
@@ -693,11 +706,19 @@ class OrderViewSet(TenantAwareViewSet):
     @action(detail=True, methods=["post"], url_path="cancel")
     def cancel(self, request, pk=None):
         order = self.get_object()
-        reason = request.data.get("reason", "")
+        
+        serializer = CancelOrderSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        
+        reason = serializer.validated_data["reason"]
+        
         try:
-            order.transition_to("CANCELLED", user=request.user, reason=reason)
-        except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            order.cancel(user=request.user, reason=reason)
+        except ValidationError as e:
+            msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+            return Response({"detail": msg}, status=status.HTTP_400_BAD_REQUEST)
+
         fresh_order = self.get_queryset().get(pk=order.pk)
         return Response(OrderSerializer(fresh_order, context={"request": request}).data)
 
@@ -764,7 +785,13 @@ class OrderViewSet(TenantAwareViewSet):
     @action(detail=False, methods=["get"], url_path="create/meta")
     def create_meta(self, request):
         rid = self.get_restaurant_id()
-        tables = DiningTable.objects.filter(restaurant_id=rid, is_active=True)
+        tables = DiningTable.objects.filter(
+            restaurant_id=rid, 
+            is_active=True, 
+            status="AVAILABLE"
+        ).exclude(
+            orders__status__in=["PENDING", "PREPARING", "READY"]
+        )
         table_options = [{"id": t.id, "name": t.name} for t in tables]
         return Response({
             "available_tables": table_options
@@ -831,9 +858,16 @@ class DiningTableViewSet(viewsets.ModelViewSet):
     queryset = DiningTable.objects.all()
 
     def get_queryset(self):
-        # Adjust this to match how your project gets the current restaurant ID
         restaurant_id = getattr(self.request, "restaurant_id", None) or getattr(self.request.user, "restaurant_id", 1)
-        return DiningTable.objects.filter(restaurant_id=restaurant_id).order_by("name")
+        queryset = DiningTable.objects.filter(restaurant_id=restaurant_id)
+        
+        # If requested, filter to only true available tables
+        if self.request.query_params.get("available_only") == "true":
+            queryset = queryset.filter(status="AVAILABLE").exclude(
+                orders__status__in=["PENDING", "PREPARING", "READY"]
+            )
+            
+        return queryset.order_by("name")
 
     def perform_create(self, serializer):
         serializer.save(restaurant_id=self.get_restaurant_id())

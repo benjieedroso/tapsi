@@ -248,8 +248,8 @@ class TenantAwareViewSet(viewsets.ModelViewSet):
     """Base ViewSet enforcing tenant isolation and read/write permission splitting."""
 
     def get_permissions(self):
-        # Allow any authenticated employee (Cashier, Staff, Manager, Owner) to GET data
-        if self.action in ["list", "retrieve"]:
+        # Allow list, retrieve, and specific staff actions for any authenticated user
+        if self.action in ["list", "retrieve", "clock_in", "clock_out"]:
             return [permissions.IsAuthenticated()]
         return [permissions.IsAuthenticated(), IsManagerOrOwner()]
 

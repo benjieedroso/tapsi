@@ -224,7 +224,7 @@ export const ExpenseList: React.FC<ExpenseListProps> = ({ userRole }) => {
                   <td>{new Date(expense.expense_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</td>
                   <td>{expense.category_display}</td>
                   <td>{expense.payee || '—'}</td>
-                  <td style={{ textAlign: 'right' }}>₱{(expense.amount ?? 0).toFixed(2)}</td>
+                  <td style={{ textAlign: 'right' }}>₱{Number(expense.amount ?? 0).toFixed(2)}</td>
                   <td>
                     {expense.status === 'APPROVED' ? (
                       <span className="badge badge-success">{expense.status_display}</span>

@@ -28,6 +28,19 @@ export interface AttendanceListResponse {
   month: string;
 }
 
+export interface AttendanceRecord {
+  id: number;
+  employee: number;
+  employee_name: string;
+  restaurant_id: number;
+  work_date: string;       // Formatted as 'YYYY-MM-DD'
+  clock_in: string | null; // ISO 8601 datetime string or null
+  clock_out: string | null;// ISO 8601 datetime string or null
+  hours: number | string;  // Calculated total hours worked
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface EmployeeDetail {
   id: number;
   full_name: string;

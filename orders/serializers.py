@@ -193,3 +193,11 @@ class PaymentSerializer(serializers.ModelSerializer):
             "business_date", 
             "created_at"
         ]
+
+class CancelOrderSerializer(serializers.Serializer):
+    reason = serializers.CharField(required=True, allow_blank=False, max_length=255)
+
+    def validate_reason(self, value):
+        if not value.strip():
+            raise serializers.ValidationError("A cancellation reason is required.")
+        return value.strip()

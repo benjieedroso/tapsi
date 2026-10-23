@@ -4,7 +4,13 @@ import type { ExpenseCategory, ExpenseDetail, ExpenseFilterParams, ExpenseListRe
 export const expensesApi = {
   getCategories: async (): Promise<ExpenseCategory[]> => {
     const response = await apiClient.get('/api/v1/expenses/categories/');
-    return response.data;
+    if (Array.isArray(response.data)) {
+      return response.data;
+    }
+    if (response.data && Array.isArray(response.data.categories)) {
+      return response.data.categories;
+    }
+    return [];
   },
 
   getExpenseDetail: async (id: number): Promise<ExpenseDetail> => {
