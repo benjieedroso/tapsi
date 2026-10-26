@@ -20,7 +20,7 @@ class AttendanceSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["created_at", "updated_at"]
+        read_only_fields = ["created_at", "updated_at", "employee"]
 
     def validate(self, attrs):
         clock_in = attrs.get("clock_in") or getattr(self.instance, "clock_in", None)
@@ -30,6 +30,16 @@ class AttendanceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"clock_out": "Clock-out cannot be before clock-in."})
 
         return attrs
+
+    def update(self, instance, validated_data):
+        # Explicitly update work_date and timestamps
+        instance.work_date = validated_data.get("work_date", instance.work_date)
+        instance.clock_in = validated_data.get("clock_in", instance.clock_in)
+        instance.clock_out = validated_data.get("clock_out", instance.clock_out)
+        instance.status = validated_data.get("status", getattr(instance, "status", None))
+        instance.notes = validated_data.get("notes", getattr(instance, "notes", None))
+        instance.save()
+        return instance
 
 
 class EmployeeSerializer(serializers.ModelSerializer):

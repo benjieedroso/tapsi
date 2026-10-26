@@ -21,7 +21,7 @@ export const AttendanceForm: React.FC = () => {
     const fetchAttendance = async () => {
       try {
         const data = await employeesApi.getAttendanceDetail(Number(id));
-        setTimeIn(data.time_in ? data.time_in.slice(0, 16) : ''); // Format for datetime-local input
+        setTimeIn(data.time_in ? data.time_in.slice(0, 16) : '');
         setTimeOut(data.time_out ? data.time_out.slice(0, 16) : '');
         setStatus(data.status || '');
         setNotes(data.notes || '');
@@ -42,15 +42,26 @@ export const AttendanceForm: React.FC = () => {
     setNonFieldErrors([]);
     setFieldErrors({});
 
+    const formatToDjangoDateTime = (val: string) => {
+      if (!val) return null;
+      return val.length === 16 ? `${val}:00` : val;
+    };
+
+    const formattedClockIn = formatToDjangoDateTime(timeIn);
+    
+    // Derive the work_date from the updated Time In value (YYYY-MM-DD)
+    const derivedWorkDate = formattedClockIn ? formattedClockIn.split('T')[0] : undefined;
+
     const payload = {
-      time_in: timeIn ? new Date(timeIn).toISOString() : null,
-      time_out: timeOut ? new Date(timeOut).toISOString() : null,
+      work_date: derivedWorkDate, // Sends the new date (e.g., '2026-10-25')
+      clock_in: formattedClockIn,
+      clock_out: formatToDjangoDateTime(timeOut),
       status: status || undefined,
       notes: notes || undefined,
     };
 
     try {
-      await employeesApi.updateAttendance(Number(id), payload);
+      await employeesApi.updateAttendance(Number(id), payload as any);
       navigate('/attendance');
     } catch (err: any) {
       if (err.response?.data) {

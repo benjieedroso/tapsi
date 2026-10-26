@@ -26,7 +26,7 @@ export const InventoryReport: React.FC = () => {
       if (endParam) params.end = endParam;
 
       const res = await reportsApi.getInventoryReport(params);
-      setReportData(res.data);
+      setReportData(res);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load inventory report.');

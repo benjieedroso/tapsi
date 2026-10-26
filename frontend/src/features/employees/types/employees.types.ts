@@ -5,6 +5,7 @@ export interface AttendanceDetail {
   time_out?: string | null;
   status?: string;
   notes?: string;
+  work_date?: string;
 }
 
 export interface AttendanceUpdatePayload {
@@ -12,6 +13,7 @@ export interface AttendanceUpdatePayload {
   time_out?: string | null;
   status?: string;
   notes?: string;
+  work_date?: string;
 }
 
 export interface AttendanceRecord {

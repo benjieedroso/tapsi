@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { reportsApi } from '../api/reports';
 import type { DailySalesData } from '../types/reports.types';
 
+
 export const DailySalesReport: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -17,8 +18,10 @@ export const DailySalesReport: React.FC = () => {
     setLoading(true);
     try {
       const res = await reportsApi.getDailySales(searchParams.get('date') || undefined);
-      setReportData(res.data);
+      // Since reportsApi returns DailySalesResponse which has a .data property:
+      setReportData(res); // <-- Make sure this has .data
       setError(null);
+      console.log ("what the fuck", res);
     } catch (err: any) {
       setError(err.response?.data?.detail || 'Failed to load daily sales report.');
     } finally {

@@ -61,6 +61,7 @@ import { ClosingPrepare } from './features/closing/pages/ClosingPrepare';
 import { EODReport } from './features/closing/pages/EODReport';
 
 // Reports Imports
+import { ReportsPage } from './features/reports/pages/ReportsPage';
 import { DailySalesReport } from './features/reports/pages/DailySalesReport';
 import { InventoryReport } from './features/reports/pages/InventoryReport';
 import { MonthlySalesReport } from './features/reports/pages/MonthlySalesReport';
@@ -193,7 +194,7 @@ export default function App() {
             <Route path="/closing/:id/report" element={<EODReport />} />
 
             {/* Reports Routes */}
-            <Route path="/reports" element={<Navigate to="/reports/daily-sales" replace />} />
+            <Route path="/reports" element={< ReportsPage />} />
             <Route path="/reports/daily-sales" element={<DailySalesReport />} />
             <Route path="/reports/inventory" element={<InventoryReport />} />
             <Route path="/reports/monthly-sales" element={<MonthlySalesReport />} />
