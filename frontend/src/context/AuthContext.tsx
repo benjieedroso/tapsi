@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authApi } from '../api/auth';
+import { apiClient } from '../api/client';
 
 export interface UserProfile {
   id: number;
   email: string;
   first_name: string;
   last_name: string;
-  role: 'OWNER' | 'MANAGER' | 'CASHIER' | 'STAFF';
+  role: 'OWNER' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
   restaurant?: {
     id: number;
     name: string;
@@ -33,8 +33,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const token = localStorage.getItem('access_token');
       if (token) {
         try {
-          const userData = await authApi.getCurrentUser();
-          setUser(userData);
+          const response = await apiClient.get('/api/v1/auth/me/');
+          setUser(response.data);
         } catch (error) {
           // Token expired or invalid
           localStorage.removeItem('access_token');
@@ -49,14 +49,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
   
     const login = async (credentials: { username: string; password: string }) => {
-        await authApi.login(credentials);
-        const userData = await authApi.getCurrentUser();
-        setUser(userData);
+        const response = await apiClient.post('/api/v1/auth/token/', {
+          email: credentials.username,
+          username: credentials.username,
+          password: credentials.password,
+        });
+        const token = response.data.access || response.data.token;
+        if (token) {
+          localStorage.setItem('access_token', token);
+          localStorage.setItem('token', token);
+        }
+        const userResponse = await apiClient.get('/api/v1/auth/me/');
+        setUser(userResponse.data);
     };
 
   const logout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('restaurant_id');
     setUser(null);
   };
 

@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 from datetime import timedelta
-
+from corsheaders.defaults import default_headers
 BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = "development-only-change-me-before-production"
 DEBUG = True
@@ -41,6 +41,10 @@ CORS_ALLOWED_ORIGINS = env_list(
         "http://localhost:19006",
     ],
 )
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "x-restaurant-id",
+]
 
 INSTALLED_APPS = [
     "django.contrib.admin",

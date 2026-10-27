@@ -14,17 +14,22 @@ export const ClosingList: React.FC<ClosingListProps> = ({ userRole }) => {
   const [reopeningId, setReopeningId] = useState<number | null>(null);
 
   const fetchClosings = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await closingApi.getClosingList();
-      setClosings(res.closings || []);
-      setError(null);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load daily closings.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  setLoading(true);
+  try {
+    const res = await closingApi.getClosingList();
+    
+    // Ensure data is parsed correctly whether DRF returns a raw list or object wrapper
+    const listData = Array.isArray(res) ? res : (res.closings || res.results || []);
+    console.log("Fetched closings payload:", listData);
+    
+    setClosings(listData);
+    setError(null);
+  } catch (err: any) {
+    setError(err.response?.data?.detail || 'Failed to load daily closings.');
+  } finally {
+    setLoading(false);
+  }
+}, []);
 
   useEffect(() => {
     fetchClosings();
@@ -113,10 +118,10 @@ export const ClosingList: React.FC<ClosingListProps> = ({ userRole }) => {
                       )}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      ₱{(closing.expected_cash ?? 0).toFixed(2)}
+                      ₱{Number(closing.expected_cash ?? 0).toFixed(2)}
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      ₱{(closing.counted_cash ?? 0).toFixed(2)}
+                      ₱{Number(closing.counted_cash ?? 0).toFixed(2)}
                     </td>
                     <td
                       style={{
@@ -124,7 +129,7 @@ export const ClosingList: React.FC<ClosingListProps> = ({ userRole }) => {
                         color: hasVariance ? 'var(--color-error)' : 'inherit',
                       }}
                     >
-                      ₱{(closing.variance ?? 0).toFixed(2)}
+                      ₱{Number(closing.variance ?? 0).toFixed(2)}
                     </td>
                     <td>{closing.variance_note || '—'}</td>
                     <td style={{ textAlign: 'right' }}>

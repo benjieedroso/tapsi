@@ -7,6 +7,6 @@ router = DefaultRouter()
 router.register(r"records", views.AuditLogViewSet, basename="audit-log")
 
 urlpatterns = [
-    path("api/v1/", include(router.urls)),
+    path("", include(router.urls)),
     path("", views.audit_log_list, name="audit_log_list"),
 ]

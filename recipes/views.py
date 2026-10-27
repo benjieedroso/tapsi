@@ -2,15 +2,13 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
-from rest_framework import status, viewsets, serializers
+from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from menu.models import MenuItem, AddOn
 from inventory.models import Ingredient
 
 from menu.views import TenantAwareViewSet
-from inventory.models import Ingredient
-
 from accounts.models import User
 
 from .forms import RecipeForm, RecipeIngredientForm
@@ -142,16 +140,6 @@ def recipe_line_remove(request, pk, line_pk):
     return redirect("recipes:recipe_detail", pk=recipe.pk)
 
 #New Code
-class TenantAwareViewSet(viewsets.ModelViewSet):
-    def get_restaurant_id(self):
-        if hasattr(self.request.user, "restaurant_id") and self.request.user.restaurant_id:
-            return self.request.user.restaurant_id
-        return int(self.request.headers.get("X-Restaurant-ID", 1))
-
-    def perform_create(self, serializer):
-        serializer.save(restaurant_id=self.get_restaurant_id())
-
-
 class RecipeViewSet(TenantAwareViewSet):
     serializer_class = RecipeSerializer
 
@@ -252,28 +240,3 @@ class RecipeViewSet(TenantAwareViewSet):
             return Response(status=status.HTTP_204_NO_CONTENT)
         except RecipeIngredient.DoesNotExist:
             return Response({"detail": "Line not found."}, status=status.HTTP_404_NOT_FOUND)
-
-class IngredientNestedSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Ingredient  # Make sure Ingredient is imported from inventory.models
-        fields = ["id", "name", "unit_of_measure", "average_unit_cost"]
-
-
-class RecipeIngredientSerializer(serializers.ModelSerializer):
-    # Nested representation so line.ingredient.name and line.ingredient.average_unit_cost work on the frontend
-    ingredient = IngredientNestedSerializer(read_only=True)
-    ingredient_id = serializers.PrimaryKeyRelatedField(
-        queryset=Ingredient.objects.all(), source="ingredient", write_only=True
-    )
-    
-    line_cost = serializers.ReadOnlyField()
-
-    class Meta:
-        model = RecipeIngredient
-        fields = [
-            "id",
-            "ingredient",
-            "ingredient_id",
-            "quantity",
-            "line_cost",
-        ]

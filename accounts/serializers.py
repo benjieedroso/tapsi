@@ -61,7 +61,6 @@ class UserMeSerializer(serializers.ModelSerializer):
             "is_active",
             "date_joined",
             "last_login",
-            "avatar"
         ]
         read_only_fields = ["id", "email", "role", "restaurant"]
 

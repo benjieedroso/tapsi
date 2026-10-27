@@ -347,20 +347,8 @@ class Order(models.Model):
         ])
 
     @property
-    def paid(self):
-        """Sums all non-refund payments."""
-        if hasattr(self, 'payments'):
-            return float(sum((p.amount for p in self.payments.all() if p.amount > 0), Decimal("0.00")))
-        return 0.0
-
-    @property
-    def outstanding_balance(self):
-        """Calculates remaining balance."""
-        return float(self.total or 0) - self.paid
-
-    @property
     def is_settled(self):
-        return self.outstanding_balance <= 0
+        return self.outstanding_balance <= Decimal("0")
 
 
 """

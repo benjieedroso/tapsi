@@ -697,7 +697,9 @@ class OrderViewSet(TenantAwareViewSet):
     def complete(self, request, pk=None):
         order = self.get_object()
         try:
-            order.transition_to("COMPLETED", user=request.user)
+            from . import services
+            from notifications.services import Notifier
+            services.settle_order(order, request.user, notify_service=Notifier())
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         fresh_order = self.get_queryset().get(pk=order.pk)
@@ -798,7 +800,7 @@ class OrderViewSet(TenantAwareViewSet):
         })
 
     def perform_create(self, serializer):
-        serializer.save()
+        serializer.save(restaurant_id=self.get_restaurant_id())
 
     def list(self, request, *args, **kwargs):
         queryset = self.filter_queryset(self.get_queryset())
@@ -833,6 +835,8 @@ class OrderViewSet(TenantAwareViewSet):
         order = self.get_object()
         method = request.data.get("method", "CASH")
         amount = request.data.get("amount")
+        reference_no = request.data.get("reference_no", "")
+        tendered = request.data.get("tendered")
 
         if not amount:
             return Response({"detail": "Payment amount is required."}, status=status.HTTP_400_BAD_REQUEST)
@@ -842,14 +846,20 @@ class OrderViewSet(TenantAwareViewSet):
         except (TypeError, ValueError):
             return Response({"detail": "Invalid payment amount."}, status=status.HTTP_400_BAD_REQUEST)
 
-        Payment.objects.create(
-            order=order,
-            restaurant_id=order.restaurant_id,  # <-- Pass the restaurant_id here
-            method=method,
-            amount=amount_val,
-        )
+        try:
+            from . import services
+            payment = services.record_payment(
+                order,
+                method,
+                amount_val,
+                request.user,
+                reference_no=reference_no,
+                tendered=tendered,
+            )
+        except ValidationError as e:
+            msg = e.messages[0] if hasattr(e, 'messages') and e.messages else str(e)
+            return Response({"detail": msg}, status=status.HTTP_400_BAD_REQUEST)
 
-        order.recompute_totals(user=request.user)
         fresh_order = self.get_queryset().get(pk=order.pk)
         return Response(OrderSerializer(fresh_order, context={"request": request}).data)
 
@@ -870,9 +880,6 @@ class DiningTableViewSet(viewsets.ModelViewSet):
         return queryset.order_by("name")
 
     def perform_create(self, serializer):
-        serializer.save(restaurant_id=self.get_restaurant_id())
-
-    def perform_create(self, serializer):
         # Explicitly inject the restaurant_id when saving
         restaurant_id = getattr(self.request, "restaurant_id", None) or getattr(self.request.user, "restaurant_id", 1)
         serializer.save(restaurant_id=restaurant_id)
@@ -891,18 +898,6 @@ class DiningTableViewSet(viewsets.ModelViewSet):
             raise DRFValidationError({"detail": e.messages})
 
     def retrieve(self, request, *args, **kwargs):
-        order = self.get_object()
-        rid = self.get_restaurant_id()
-        
-        # Gather the auxiliary data your frontend expects
-        shortfalls = [] # Compute or fetch shortfalls if applicable
-        available_tables = [{"id": t.id, "name": t.name} for t in DiningTable.objects.filter(restaurant_id=rid, is_active=True)]
-        menu_items = [{"id": m.id, "name": m.name, "price": str(m.price)} for m in MenuItem.objects.filter(restaurant_id=rid, is_available=True)]
-
-        serializer = self.get_serializer(order)
-        return Response({
-            "order": serializer.data,
-            "shortfalls": shortfalls,
-            "availableTables": available_tables,
-            "menuItems": menu_items,
-        })
+        table = self.get_object()
+        serializer = self.get_serializer(table)
+        return Response(serializer.data)

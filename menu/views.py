@@ -254,7 +254,16 @@ class TenantAwareViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated(), IsManagerOrOwner()]
 
     def get_restaurant_id(self):
-        return self.request.user.restaurant_id
+        # 1. Check the incoming request header first (sent by your frontend api helper)
+        restaurant_id = self.request.headers.get("X-Restaurant-ID")
+        if restaurant_id:
+            return int(restaurant_id)
+            
+        # 2. Fallback to user attribute if authenticated and available
+        if hasattr(self.request, 'user') and hasattr(self.request.user, 'restaurant_id'):
+            return self.request.user.restaurant_id
+            
+        return None
 
     def perform_create(self, serializer):
         serializer.save(restaurant_id=self.get_restaurant_id())

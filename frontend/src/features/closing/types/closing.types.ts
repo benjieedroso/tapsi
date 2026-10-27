@@ -10,6 +10,7 @@ export interface DailyClosingItem {
 
 export interface DailyClosingListResponse {
   closings: DailyClosingItem[];
+  results: DailyClosingItem[];
 }
 
 export interface OpenOrder {
@@ -23,7 +24,6 @@ export interface ClosingPrepareData {
   business_date: string;
   already_closed?: {
     status: string;
-    get_status_display: string;
   } | null;
   open_orders?: OpenOrder[];
   opening_float?: number;
@@ -33,6 +33,7 @@ export interface ClosingPrepareData {
 export interface ClosingCompletePayload {
   counted_cash: number;
   variance_note?: string;
+  business_date?: string;
 }
 
 export interface EODReportData {

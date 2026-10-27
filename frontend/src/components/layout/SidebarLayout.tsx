@@ -165,9 +165,11 @@ export const SidebarLayout: React.FC<{ user: UserProfile | null }> = ({ user }) 
         </div>
       </aside>
 
-      <main className="app-main">
-        <Outlet />
-      </main>
+       <main className="app-main">
+         <div className="page-container">
+           <Outlet />
+         </div>
+       </main>
     </div>
   );
 };

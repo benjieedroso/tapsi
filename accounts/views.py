@@ -589,13 +589,9 @@ def restaurant_settings(request):
         form.save()
         messages.success(request, "Restaurant settings updated.")
         return redirect("accounts:restaurant_settings")
-
     return render(request, "accounts/restaurant_settings.html", {"restaurant": restaurant, "form": form})
 
-'''
-New Updated Code for SPA
 
-'''
 def get_client_ip(request):
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:

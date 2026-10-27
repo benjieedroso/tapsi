@@ -53,7 +53,16 @@ export interface UserProfile {
   email: string;
   first_name: string;
   last_name: string;
+  display_name: string;
+  role: 'OWNER' | 'MANAGER' | 'CASHIER' | 'KITCHEN';
+  restaurant_id: number | null;
+  restaurant_name?: string | null;
+  phone: string;
   avatar?: string | null;
+  must_change_password: boolean;
+  is_active: boolean;
+  date_joined: string;
+  last_login: string | null;
 }
 
 export interface UpdateProfilePayload {

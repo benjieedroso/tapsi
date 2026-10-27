@@ -56,39 +56,43 @@ class DailyClosing(models.Model):
 
     @classmethod
     def expected_cash_for(cls, restaurant_id, business_date):
-        """FR-140: expected cash = opening float + cash sales − cash refunds
-        − cash expenses."""
+        """FR-140: expected cash = opening float + cash sales − cash refunds − cash expenses."""
         from decimal import Decimal
+        from datetime import datetime, date
+        from django.db.models import Sum
 
         from expenses.models import Expense
         from orders.models import Payment
 
+        # 1. Parse string date to a date object if necessary
+        if isinstance(business_date, str):
+            business_date = datetime.strptime(business_date, "%Y-%m-%d").date()
+
         opening = cls.current_float(restaurant_id)
-        cash_sales = sum(
-            (p.amount for p in Payment.objects.filter(
-                restaurant_id=restaurant_id,
-                business_date=business_date,
-                method=Payment.Method.CASH,
-                amount__gt=0,
-            )),
-            Decimal("0"),
-        )
-        cash_refunds = abs(sum(
-            (p.amount for p in Payment.objects.filter(
-                restaurant_id=restaurant_id,
-                business_date=business_date,
-                method=Payment.Method.CASH,
-                amount__lt=0,
-            )),
-            Decimal("0"),
-        ))
-        cash_expenses = sum(
-            (e.amount for e in Expense.objects.filter(
-                restaurant_id=restaurant_id,
-                expense_date=business_date,
-                payment_method="CASH",
-                status="APPROVED",
-            )),
-            Decimal("0"),
-        )
-        return opening + cash_sales - cash_refunds - cash_expenses
+
+        # 2. Query positive cash payments (Sales)
+        sales_agg = Payment.objects.filter(
+            restaurant_id=restaurant_id,
+            business_date=business_date,
+            method=Payment.Method.CASH,
+            amount__gt=0,
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+
+        # 3. Query negative cash payments (Refunds)
+        refunds_agg = Payment.objects.filter(
+            restaurant_id=restaurant_id,
+            business_date=business_date,
+            method=Payment.Method.CASH,
+            amount__lt=0,
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        cash_refunds = abs(refunds_agg)
+
+        # 4. Query approved cash expenses
+        expenses_agg = Expense.objects.filter(
+            restaurant_id=restaurant_id,
+            expense_date=business_date,
+            payment_method="CASH",
+            status="APPROVED",
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+
+        return opening + sales_agg - cash_refunds - expenses_agg

@@ -373,9 +373,6 @@ class PurchaseOrderViewSet(TenantAwareViewSet):
         """FR-065: Record partial or full received quantities per line item."""
         po = self.get_object()
         data = request.data
-        
-        # DEBUG: Print what the backend is receiving
-        print("RECEIVED PAYLOAD:", data)
 
         receipts = []
         if isinstance(data, dict):
@@ -387,29 +384,56 @@ class PurchaseOrderViewSet(TenantAwareViewSet):
             receipts = data
 
         if not receipts:
-            print("VALIDATION ERROR: No receipts found in payload.")
             raise ValidationError({"items": "Receipt items payload required."})
 
-        for receipt in receipts:
-            if isinstance(receipt, dict):
-                item_id = receipt.get("item_id") or receipt.get("id")
-                received_qty = receipt.get("qty_received", 0)
-            else:
-                continue
+        errors = []
+        with transaction.atomic():
+            for receipt in receipts:
+                if isinstance(receipt, dict):
+                    item_id = receipt.get("item_id") or receipt.get("id")
+                    received_qty = receipt.get("qty_received", 0)
+                else:
+                    continue
 
-            if not item_id:
-                continue
+                if not item_id:
+                    continue
 
-            try:
-                line = po.items.get(id=item_id)
-                line.qty_received = received_qty
-                line.save()
-            except Exception as e:
-                # DEBUG: Print if line.save() throws a ValidationError (like exceeding ordered qty)
-                print("LINE SAVE ERROR:", str(e))
-                raise ValidationError({"detail": str(e)})
+                try:
+                    line = po.items.get(id=item_id)
+                    try:
+                        qty = Decimal(str(received_qty))
+                    except Exception:
+                        errors.append(f"{line.ingredient.name}: invalid quantity.")
+                        continue
+                    if qty <= 0:
+                        errors.append(f"{line.ingredient.name}: quantity must be positive.")
+                        continue
+                    if qty > line.outstanding_qty:
+                        errors.append(
+                            f"{line.ingredient.name}: received {qty} exceeds outstanding {line.outstanding_qty}."
+                        )
+                        continue
+                    # Add to existing received qty (not overwrite)
+                    line.qty_received += qty
+                    line.save(update_fields=["qty_received"])
+                    # FR-062: PURCHASE transaction feeds inventory + weighted average cost.
+                    txn = InventoryTransaction(
+                        ingredient=line.ingredient,
+                        transaction_type=InventoryTransaction.Type.PURCHASE,
+                        quantity=qty,
+                        unit_cost=line.unit_cost,
+                        reference=po.po_number,
+                        user=request.user if request.user.is_authenticated else None,
+                    )
+                    txn.save()
+                except PurchaseOrderItem.DoesNotExist:
+                    errors.append(f"Line item {item_id} not found in this PO.")
+
+            if errors:
+                raise ValidationError({"detail": errors})
 
         # Recalculate status automatically based on line quantities
+        po.refresh_from_db()
         total_ordered = sum(item.qty_ordered for item in po.items.all())
         total_received = sum(item.qty_received for item in po.items.all())
 
@@ -419,6 +443,10 @@ class PurchaseOrderViewSet(TenantAwareViewSet):
             po.status = PurchaseOrder.Status.PARTIALLY_RECEIVED
 
         po.save(update_fields=["status", "updated_at"])
+
+        from notifications.services import Notifier
+        Notifier().po_received(po)
+
         return Response(self.get_serializer(po).data)
 
     @action(detail=True, methods=["post"], url_path="place")

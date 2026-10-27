@@ -10,7 +10,7 @@ export const auditApi = {
     date_to?: string;
     page?: number;
   }): Promise<AuditLogListResponse> => {
-    const response = await apiClient.get('/api/v1/audit/', { params });
+    const response = await apiClient.get('/api/v1/audit-logs/', { params });
     return response.data;
   },
 };

@@ -11,8 +11,8 @@ export interface AuditLogItem {
   action: string;
   entity: string;
   entity_id?: number | null;
-  before?: string | null;
-  after?: string | null;
+  before?: Record<string, unknown> | null;
+  after?: Record<string, unknown> | null;
 }
 
 export interface AuditLogListResponse {

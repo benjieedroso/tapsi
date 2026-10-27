@@ -211,13 +211,13 @@ export const AuditLogList: React.FC<AuditLogListProps> = ({ userRole }) => {
                     >
                       {entry.before && (
                         <>
-                          before: {entry.before.length > 80 ? `${entry.before.substring(0, 80)}...` : entry.before}
+                          before: {(() => { const s = typeof entry.before === 'string' ? entry.before : JSON.stringify(entry.before); return s.length > 80 ? s.substring(0, 80) + '...' : s; })()}
                           <br />
                         </>
                       )}
                       {entry.after && (
                         <>
-                          after: {entry.after.length > 120 ? `${entry.after.substring(0, 120)}...` : entry.after}
+                          after: {(() => { const s = typeof entry.after === 'string' ? entry.after : JSON.stringify(entry.after); return s.length > 120 ? s.substring(0, 120) + '...' : s; })()}
                         </>
                       )}
                     </td>

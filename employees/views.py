@@ -187,40 +187,6 @@ class EmployeeViewSet(TenantAwareViewSet):
         # Soft delete execution
         instance.soft_delete()
 
-    def perform_create(self, serializer):
-            user = self.request.user
-            if user.role not in {User.Role.OWNER, User.Role.MANAGER}:
-                raise PermissionDenied("Only Owners and Managers can create employees.")
-    
-            # Get employee details from request payload
-            email = self.request.data.get("email")
-            full_name = self.request.data.get("full_name")
-            role = self.request.data.get("role", User.Role.STAFF)
-            rid = self.get_restaurant_id()
-    
-            employee_user = None
-            if email:
-                # Check if user already exists to prevent duplicate key errors
-                employee_user = User.objects.filter(email=email).first()
-                if not employee_user:
-                    # Generate a secure temporary password for the employee
-                    temp_password = "".join(secrets.choice(string.ascii_letters + string.digits) for _ in range(10))
-                    
-                    # Automatically create the login user account
-                    employee_user = User.objects.create_user(
-                        email=email,
-                        username=email,
-                        password=temp_password,
-                        role=role,
-                        restaurant_id=rid
-                    )
-    
-            # Save the employee and bind the user foreign key automatically
-            serializer.save(
-                restaurant_id=rid,
-                user=employee_user
-            )
-
 
 class AttendanceViewSet(TenantAwareViewSet):
     serializer_class = AttendanceSerializer

@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useEffect, useState, useCallback } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { closingApi } from '../api/closing';
 import type { ClosingPrepareData, OpenOrder } from '../types/closing.types';
 
 export const ClosingPrepare: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   const [data, setData] = useState<ClosingPrepareData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -15,30 +16,38 @@ export const ClosingPrepare: React.FC = () => {
   const [countedCash, setCountedCash] = useState<number | ''>('');
   const [varianceNote, setVarianceNote] = useState<string>('');
 
-  const fetchPrepareData = async () => {
+  const fetchPrepareData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await closingApi.getClosingPrepare();
+      const dateParam = searchParams.get('date') || new Date().toISOString().split('T')[0];
+      const res = await closingApi.getClosingPrepare(dateParam);
       setData(res);
       setError(null);
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Failed to load closing preparation data.');
+      setError(
+        err.response?.data?.detail || 
+        err.response?.data?.date?.[0] || 
+        'Failed to load closing preparation data.'
+      );
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchParams]);
 
   useEffect(() => {
     fetchPrepareData();
-  }, []);
+  }, [fetchPrepareData]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
 
+    const dateParam = searchParams.get('date') || new Date().toISOString().split('T')[0];
+
     try {
       await closingApi.completeClosing({
+        business_date: dateParam,
         counted_cash: Number(countedCash),
         variance_note: varianceNote || undefined,
       });
@@ -96,9 +105,9 @@ export const ClosingPrepare: React.FC = () => {
           }}
         >
           <strong>
-            {alreadyClosedDateFormatted} is already {data.already_closed.get_status_display.toLowerCase()}.
+            {alreadyClosedDateFormatted} is already {data.already_closed?.status?.toLowerCase()}.
           </strong>
-          {data.already_closed.status === 'REOPENED' &&
+          {data.already_closed?.status === 'REOPENED' &&
             ' It must be re-closed by the Owner — the day is currently unlocked.'}
         </div>
       ) : data?.open_orders && data.open_orders.length > 0 ? (

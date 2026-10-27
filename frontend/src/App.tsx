@@ -171,7 +171,7 @@ export default function App() {
             <Route path="/expenses/:id/edit" element={<ExpenseForm />} />
 
             {/* Employees & Attendance Routes */}
-            <Route path="/employees" element={<EmployeeList userRole={user?.role} />} />
+            <Route path="/employees" element={<EmployeeList />} />
             <Route path="/employees/create" element={<EmployeeForm />} />
             <Route path="/employees/:id/edit" element={<EmployeeForm />} />
             <Route path="/attendance" element={<AttendanceList userRole={user?.role} />} />

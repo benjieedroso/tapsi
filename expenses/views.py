@@ -178,9 +178,27 @@ class ExpenseViewSet(TenantAwareViewSet):
 
     def perform_create(self, serializer):
         # Automatically attach restaurant_id and created_by user from request
+        rid = self.get_restaurant_id()
+        expense_date = serializer.validated_data.get("expense_date")
+
+        # BR-008: closed days reject new expenses (FR-113)
+        from closing.models import DailyClosing
+        if DailyClosing.objects.filter(
+            restaurant_id=rid,
+            business_date=expense_date,
+            status=DailyClosing.Status.CLOSED,
+        ).exists():
+            from rest_framework.exceptions import ValidationError as DRFValidationError
+            raise DRFValidationError({"expense_date": "This business day is closed — expenses cannot be recorded (FR-113)."})
+
+        amount = serializer.validated_data.get("amount")
+        is_manager = self.request.user.role in {User.Role.OWNER, User.Role.MANAGER}
+        status = Expense.Status.APPROVED if is_manager or amount <= APPROVAL_THRESHOLD else Expense.Status.PENDING
+
         serializer.save(
-            restaurant_id=self.get_restaurant_id(),
+            restaurant_id=rid,
             created_by=self.request.user,
+            status=status,
         )
 
     @action(detail=True, methods=["post"], url_path="approve")

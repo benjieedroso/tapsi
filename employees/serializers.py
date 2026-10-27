@@ -32,12 +32,9 @@ class AttendanceSerializer(serializers.ModelSerializer):
         return attrs
 
     def update(self, instance, validated_data):
-        # Explicitly update work_date and timestamps
         instance.work_date = validated_data.get("work_date", instance.work_date)
         instance.clock_in = validated_data.get("clock_in", instance.clock_in)
         instance.clock_out = validated_data.get("clock_out", instance.clock_out)
-        instance.status = validated_data.get("status", getattr(instance, "status", None))
-        instance.notes = validated_data.get("notes", getattr(instance, "notes", None))
         instance.save()
         return instance
 

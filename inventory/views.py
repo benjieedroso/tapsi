@@ -161,7 +161,7 @@ def transaction_create(request):
     rid = _restaurant_id(request.user)
     form = IngredientTransactionForm(request.POST or None, restaurant_id=rid)
     if request.method == "POST" and form.is_valid():
-        transaction = form.save()
+        transaction = form.save(commit=False)
         transaction.restaurant_id = rid
         transaction.user = request.user
         try:

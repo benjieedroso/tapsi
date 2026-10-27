@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.core.exceptions import ValidationError
+from django.db.models import Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
@@ -153,7 +154,10 @@ def closing_reopen(request, pk):
     messages.warning(request, f"Day {closing.business_date} reopened — it must be re-closed this week.")
     return redirect("closing:closing_list")
 
-# New Code
+"""
+DRF CODE
+
+"""
 class DailyClosingViewSet(TenantAwareViewSet):
     serializer_class = DailyClosingSerializer
 
@@ -223,3 +227,134 @@ class DailyClosingViewSet(TenantAwareViewSet):
         closing.save()
 
         return Response(DailyClosingSerializer(closing, context={"request": request}).data)
+
+
+    @action(detail=False, methods=["get"], url_path="prepare")
+    def prepare_closing(self, request):
+        """Prepare closing metrics and data for a given business date."""
+        business_date = self.request.query_params.get("date")
+        rid = self.get_restaurant_id()
+
+        print("DEBUG rid =", repr(rid), "type:", type(rid))
+        print("DEBUG business_date =", repr(business_date))
+        # count rows that should contribute
+        print("DEBUG orders in window:", Order.objects.filter(restaurant_id=rid, business_date=business_date).count())
+
+        expected_cash = DailyClosing.expected_cash_for(rid, business_date)
+        current_float = DailyClosing.current_float(rid)
+
+        return Response({
+            "business_date": business_date,
+            "opening_float": current_float,
+            "expected_cash": expected_cash,
+        })
+
+    @action(detail=False, methods=["post"], url_path="complete")
+    def complete_closing(self, request):
+        """Complete and lock the daily closing for a given business date."""
+        business_date = request.data.get("business_date") or request.query_params.get("date")
+        if not business_date:
+            raise ValidationError({"business_date": "Business date is required to complete closing."})
+
+        counted_cash = request.data.get("counted_cash")
+        if counted_cash is None:
+            raise ValidationError({"counted_cash": "Counted cash is required."})
+
+        rid = self.get_restaurant_id()
+
+        # Check if already closed
+        if DailyClosing.objects.filter(restaurant_id=rid, business_date=business_date, status="CLOSED").exists():
+            raise ValidationError({"non_field_errors": ["This business day is already closed."]})
+
+        # Check for open orders (FR-140)
+        open_orders = Order.objects.filter(
+            restaurant_id=rid,
+            business_date=business_date,
+            status__in=[Order.Status.PENDING, Order.Status.PREPARING, Order.Status.READY],
+        )
+        if open_orders.exists():
+            raise ValidationError({"non_field_errors": ["Open orders remain — complete or cancel them before closing (FR-140)."]})
+
+        expected_cash = DailyClosing.expected_cash_for(rid, business_date)
+        opening_float = DailyClosing.current_float(rid)
+        from decimal import Decimal
+        counted = Decimal(str(counted_cash))
+        # FR-141: variance = expected - counted (positive = cash short)
+        variance = expected_cash - counted
+        variance_note = request.data.get("variance_note", "")
+
+        if abs(variance) > VARIANCE_LIMIT and not variance_note:
+            raise ValidationError({"variance_note": "Variance beyond ±₱100 requires a written explanation (FR-141)."})
+
+        closing = DailyClosing.objects.create(
+            restaurant_id=rid,
+            business_date=business_date,
+            opening_float=opening_float,
+            expected_cash=expected_cash,
+            counted_cash=counted,
+            variance=variance,
+            variance_note=variance_note,
+            status=DailyClosing.Status.CLOSED,
+            closed_by=request.user if request.user.is_authenticated else None,
+        )
+
+        from audit_logs.services import log
+        log(
+            actor=request.user, action="DAY_CLOSE", entity="daily_closing",
+            entity_id=closing.pk,
+            after={"business_date": str(business_date), "variance": str(variance)},
+            request=request,
+        )
+
+        serializer = DailyClosingSerializer(closing, context={"request": request})
+        return Response(serializer.data, status=201)
+
+    @action(detail=True, methods=["get"], url_path="report")
+    def report(self, request, pk=None):
+        """FR-143: End-of-Day report — Z-Reading + expense summary + variance."""
+        closing = self.get_object()
+        from orders.models import Order, Payment
+        from expenses.models import Expense
+
+        rid = closing.restaurant_id
+        bd = closing.business_date
+
+        # Cash sales and refunds
+        cash_sales = Payment.objects.filter(
+            restaurant_id=rid, business_date=bd, method=Payment.Method.CASH, amount__gt=0,
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        cash_refunds = abs(
+            Payment.objects.filter(
+                restaurant_id=rid, business_date=bd, method=Payment.Method.CASH, amount__lt=0,
+            ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+        )
+
+        # Completed orders for the day
+        completed_orders = Order.objects.filter(
+            restaurant_id=rid, business_date=bd, status=Order.Status.COMPLETED,
+        )
+        order_count = completed_orders.count()
+        gross_sales = sum((o.subtotal for o in completed_orders), Decimal("0"))
+        net_sales = sum((o.total for o in completed_orders), Decimal("0"))
+
+        # Approved cash expenses
+        cash_expenses = Expense.objects.filter(
+            restaurant_id=rid, expense_date=bd, payment_method="CASH", status="APPROVED",
+        ).aggregate(total=Sum("amount"))["total"] or Decimal("0")
+
+        serializer = DailyClosingSerializer(closing, context={"request": request})
+        return Response({
+            "closing": serializer.data,
+            "summary": {
+                "order_count": order_count,
+                "gross_sales": gross_sales,
+                "net_sales": net_sales,
+                "cash_sales": cash_sales,
+                "cash_refunds": cash_refunds,
+                "cash_expenses": cash_expenses,
+                "expected_cash": closing.expected_cash,
+                "counted_cash": closing.counted_cash,
+                "variance": closing.variance,
+            },
+        })
+
